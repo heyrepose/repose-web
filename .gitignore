@@ -11,11 +11,11 @@ coverage/
 .turbo/
 *.tsbuildinfo
 
-# Env & secrets
+# Env & secrets (including *.example / *.development)
 .env
 .env.*
-!.env.example
-!.env.local.example
+*.env
+*.env.*
 
 # Logs & OS
 *.log
