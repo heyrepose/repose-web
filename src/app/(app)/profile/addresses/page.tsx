@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useToast } from "@/components/ui/toast";
@@ -63,7 +63,7 @@ export default function AddressesPage() {
       toast("Address saved", "success");
     },
     onError: (e) =>
-      toast(e instanceof ApiError ? e.message : "Could not save address", "error"),
+      toast("Could not save address", "error", e),
   });
 
   const update = useMutation({
@@ -79,7 +79,7 @@ export default function AddressesPage() {
       toast("Address updated", "success");
     },
     onError: (e) =>
-      toast(e instanceof ApiError ? e.message : "Could not update address", "error"),
+      toast("Could not update address", "error", e),
   });
 
   const remove = useMutation({
@@ -91,7 +91,7 @@ export default function AddressesPage() {
       toast("Address removed", "success");
     },
     onError: (e) =>
-      toast(e instanceof ApiError ? e.message : "Could not remove address", "error"),
+      toast("Could not remove address", "error", e),
   });
 
   const setDefault = useMutation({
@@ -105,7 +105,7 @@ export default function AddressesPage() {
       toast("Default address updated", "success");
     },
     onError: (e) =>
-      toast(e instanceof ApiError ? e.message : "Could not set default", "error"),
+      toast("Could not set default", "error", e),
   });
 
   function startEdit(a: Address) {

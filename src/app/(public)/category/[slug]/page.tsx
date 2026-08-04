@@ -1,10 +1,10 @@
 import type { Metadata } from "next";
-import Image from "next/image";
 import { Suspense } from "react";
 import type { ProductCardItem } from "@repose/api-types";
 import { ProductGrid } from "@/components/product/product-grid";
 import { CategoryFilters } from "@/components/filters/category-filters";
 import { serverFetch } from "@/lib/api-client";
+import { categoryIcon } from "@/lib/category-icons";
 
 export const revalidate = 120;
 
@@ -12,7 +12,6 @@ type Category = {
   id: string;
   name: string;
   slug: string;
-  bannerUrl?: string | null;
   description?: string | null;
 };
 
@@ -65,38 +64,29 @@ export default async function CategoryPage({
   ]);
 
   const listings = search.data ?? [];
+  const Icon = categoryIcon(params.slug);
 
   return (
     <div className="flex flex-col gap-6">
-      <header className="relative -mx-screen overflow-hidden md:mx-0 md:rounded-card">
-        <div className="relative aspect-[21/9] min-h-[140px] w-full bg-primary">
-          {category?.bannerUrl ? (
-            <Image
-              src={category.bannerUrl}
-              alt={category.name}
-              fill
-              priority
-              className="object-cover opacity-80"
-              sizes="100vw"
-            />
+      <header className="flex items-start gap-4 border-b border-card-border pb-5">
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-card bg-accent-soft text-primary">
+          <Icon className="h-7 w-7" strokeWidth={1.5} aria-hidden />
+        </span>
+        <div className="min-w-0">
+          <h1 className="text-2xl font-semibold md:text-3xl">
+            {category?.name ?? params.slug}
+          </h1>
+          {category?.description ? (
+            <p className="mt-1 max-w-lg text-sm text-muted">
+              {category.description}
+            </p>
           ) : null}
-          <div className="absolute inset-0 bg-gradient-to-t from-text/60 to-transparent" />
-          <div className="absolute inset-x-0 bottom-0 px-screen py-5 text-surface md:px-6">
-            <h1 className="text-2xl font-semibold md:text-3xl">
-              {category?.name ?? params.slug}
-            </h1>
-            {category?.description ? (
-              <p className="mt-1 max-w-lg text-sm text-surface/85">
-                {category.description}
-              </p>
-            ) : null}
-          </div>
+          {catError ? (
+            <p className="mt-2 text-sm text-muted">
+              Category details unavailable.
+            </p>
+          ) : null}
         </div>
-        {catError ? (
-          <p className="mt-2 px-screen text-sm text-muted md:px-0">
-            Category details unavailable.
-          </p>
-        ) : null}
       </header>
 
       <Suspense fallback={null}>

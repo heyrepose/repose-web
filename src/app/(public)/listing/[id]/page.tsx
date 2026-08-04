@@ -2,9 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import type { ListingCondition } from "@repose/api-types";
 import { ConditionBadge } from "@/components/product/condition-badge";
-import { ListingActions } from "@/components/product/listing-actions";
-import { BuyButton } from "@/components/product/buy-button";
-import { AddToCartButton } from "@/components/product/add-to-cart-button";
 import { PriceTag } from "@/components/product/price-tag";
 import { ImageGallery } from "@/components/product/image-gallery";
 import { RareFindBadge, SoldOverlay } from "@/components/product/badges";
@@ -14,7 +11,7 @@ import {
   SellerListingsRail,
 } from "@/components/product/recommendation-rails";
 import { RecentlyViewedRail } from "@/components/product/recently-viewed-rail";
-import { ReportListingButton } from "@/components/product/report-listing-button";
+import { ListingCtaBlock } from "@/components/product/listing-cta-block";
 import { serverFetch } from "@/lib/api-client";
 
 type ListingDetail = {
@@ -200,20 +197,13 @@ export default async function ListingPage({
           </Link>
 
           <div className="hidden flex-col gap-3 lg:flex">
-            <ListingActions
+            <ListingCtaBlock
               listingId={listing.id}
               sellerId={listing.seller.id}
+              status={listing.status}
+              priceAed={listing.priceAed}
               initiallySaved={Boolean(listing.isSavedByCurrentUser)}
             />
-            {listing.status === "ACTIVE" ? (
-              <>
-                <BuyButton listingId={listing.id} priceAed={listing.priceAed} />
-                <AddToCartButton listingId={listing.id} />
-              </>
-            ) : (
-              <p className="text-sm text-muted">This item is not available.</p>
-            )}
-            <ReportListingButton listingId={listing.id} />
           </div>
         </div>
       </div>
@@ -228,16 +218,13 @@ export default async function ListingPage({
       {/* Sticky mobile CTA */}
       <div className="fixed inset-x-0 bottom-[72px] z-30 border-t border-card-border bg-surface/95 px-screen py-3 backdrop-blur lg:hidden">
         <div className="mx-auto flex max-w-6xl flex-col gap-2">
-          {listing.status === "ACTIVE" ? (
-            <>
-              <BuyButton listingId={listing.id} priceAed={listing.priceAed} />
-              <AddToCartButton listingId={listing.id} />
-            </>
-          ) : null}
-          <ListingActions
+          <ListingCtaBlock
             listingId={listing.id}
             sellerId={listing.seller.id}
+            status={listing.status}
+            priceAed={listing.priceAed}
             initiallySaved={Boolean(listing.isSavedByCurrentUser)}
+            compact
           />
         </div>
       </div>

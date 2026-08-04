@@ -3,7 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch } from "@/lib/api-client";
 import { useCart, type CartResponse } from "@/lib/cart";
 import { formatAed } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,7 @@ export default function CartPage() {
       toast("Removed from bag", "success");
     },
     onError: (e) =>
-      toast(e instanceof ApiError ? e.message : "Could not remove item", "error"),
+      toast("Could not remove item", "error", e),
   });
 
   const move = useMutation({
@@ -44,7 +44,7 @@ export default function CartPage() {
       toast("Moved to saved", "success");
     },
     onError: (e) =>
-      toast(e instanceof ApiError ? e.message : "Could not move item", "error"),
+      toast("Could not move item", "error", e),
   });
 
   if (isLoading) {

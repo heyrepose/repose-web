@@ -12,7 +12,7 @@ import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch, getErrorToastMessage } from "@/lib/api-client";
 import { useRequireAuth } from "@/lib/hooks";
 import { useCart, type CartResponse } from "@/lib/cart";
 import { formatAed, cn } from "@/lib/utils";
@@ -219,7 +219,7 @@ function CheckoutInner() {
           setListing(listingData);
         }
       } catch (e) {
-        setError(e instanceof ApiError ? e.message : "Checkout failed.");
+        setError(getErrorToastMessage(e, "Checkout failed."));
       } finally {
         setLoading(false);
       }
@@ -256,10 +256,9 @@ function CheckoutInner() {
       setStep("pay");
       toast("Order created — complete payment", "default");
     } catch (e) {
-      const message =
-        e instanceof ApiError ? e.message : "Could not create order.";
+      const message = getErrorToastMessage(e, "Could not create order.");
       setError(message);
-      toast(message, "error");
+      toast("Could not create order.", "error", e);
     } finally {
       setCreating(false);
     }
@@ -279,10 +278,9 @@ function CheckoutInner() {
       setAddrForm((f) => ({ ...f, line1: "", line2: "" }));
       toast("Address saved", "success");
     } catch (e) {
-      const message =
-        e instanceof ApiError ? e.message : "Could not save address.";
+      const message = getErrorToastMessage(e, "Could not save address.");
       setError(message);
-      toast(message, "error");
+      toast("Could not save address.", "error", e);
     }
   }
 

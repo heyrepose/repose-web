@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch, getErrorToastMessage } from "@/lib/api-client";
 import { formatAed } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -91,9 +91,9 @@ export function MockPaymentForm({ orderId, totalAed }: Props) {
       toast("Payment successful", "success");
       router.push(`/checkout/confirmation?orderId=${orderId}`);
     } catch (e) {
-      const message = e instanceof ApiError ? e.message : "Payment failed";
+      const message = getErrorToastMessage(e, "Payment failed");
       setError(message);
-      toast(message, "error");
+      toast("Payment failed", "error", e);
       setBusy(false);
     }
   }

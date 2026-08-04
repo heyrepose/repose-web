@@ -1,9 +1,10 @@
 "use client";
 
+import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Camera, Star } from "lucide-react";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch, getErrorToastMessage } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/components/ui/toast";
@@ -23,6 +24,12 @@ type CloudinaryUploadResponse = {
   secure_url: string;
   public_id: string;
   error?: { message?: string };
+};
+
+type Slot = { file?: File; preview: string; existingUrl?: string } | null;
+
+type ListingDetail = {
+  images: Array<{ url: string; sortOrder: number }>;
 };
 
 async function uploadToCloudinary(
@@ -58,13 +65,31 @@ export default function SellPhotosPage() {
   const router = useRouter();
   const { toast } = useToast();
   const inputRef = useRef<HTMLInputElement>(null);
-  const [slots, setSlots] = useState<Array<{ file: File; preview: string } | null>>(
-    Array(MAX).fill(null),
-  );
+  const [slots, setSlots] = useState<Slot[]>(Array(MAX).fill(null));
   const [mainIndex, setMainIndex] = useState(0);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pickSlot, setPickSlot] = useState<number | null>(null);
+  const [hydrated, setHydrated] = useState(false);
+
+  const { data: listing, isLoading } = useQuery({
+    queryKey: ["listing", listingId],
+    queryFn: () => apiFetch<ListingDetail>(`/listings/${listingId}`),
+  });
+
+  useEffect(() => {
+    if (!listing || hydrated) return;
+    const next: Slot[] = Array(MAX).fill(null);
+    const sorted = [...(listing.images ?? [])].sort(
+      (a, b) => a.sortOrder - b.sortOrder,
+    );
+    sorted.slice(0, MAX).forEach((img, i) => {
+      next[i] = { preview: img.url, existingUrl: img.url };
+    });
+    setSlots(next);
+    setMainIndex(0);
+    setHydrated(true);
+  }, [listing, hydrated]);
 
   const filled = slots.filter(Boolean).length;
 
@@ -119,12 +144,17 @@ export default function SellPhotosPage() {
     try {
       const images: Array<{ url: string; sortOrder: number }> = [];
       for (let i = 0; i < ordered.length; i++) {
-        const signed = await apiFetch<UploadUrl>(
-          `/listings/${listingId}/photos/upload-url`,
-          { method: "POST" },
-        );
-        const url = await uploadToCloudinary(ordered[i].s!.file, signed);
-        images.push({ url, sortOrder: i });
+        const slot = ordered[i].s!;
+        if (slot.existingUrl && !slot.file) {
+          images.push({ url: slot.existingUrl, sortOrder: i });
+        } else if (slot.file) {
+          const signed = await apiFetch<UploadUrl>(
+            `/listings/${listingId}/photos/upload-url`,
+            { method: "POST" },
+          );
+          const url = await uploadToCloudinary(slot.file, signed);
+          images.push({ url, sortOrder: i });
+        }
       }
 
       await apiFetch(`/listings/${listingId}/photos`, {
@@ -133,16 +163,19 @@ export default function SellPhotosPage() {
       });
       router.push(`/sell/${listingId}/details`);
     } catch (e) {
-      const message =
-        e instanceof ApiError
-          ? e.message
-          : e instanceof Error
-            ? e.message
-            : "Upload failed.";
+      const message = getErrorToastMessage(e, "Upload failed.");
       setError(message);
-      toast(message, "error");
+      toast("Upload failed.", "error", e);
       setBusy(false);
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Spinner />
+      </div>
+    );
   }
 
   return (

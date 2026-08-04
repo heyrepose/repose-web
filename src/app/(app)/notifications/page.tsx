@@ -37,7 +37,7 @@ export default function NotificationsPage() {
       void qc.invalidateQueries({ queryKey: ["notifications"] });
       void qc.invalidateQueries({ queryKey: ["notifications", "count"] });
     },
-    onError: () => toast("Could not mark as read", "error"),
+    onError: (e) => toast("Could not mark as read", "error", e),
   });
 
   const items = data?.data ?? [];

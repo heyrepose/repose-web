@@ -13,6 +13,7 @@ import {
   Pencil,
   MessageCircle,
   Shield,
+  BarChart3,
 } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { useAuth } from "@/lib/hooks";
@@ -38,7 +39,9 @@ type Me = {
 type WalletSummary = { balanceAed: string };
 
 const LINKS = [
+  { href: "/profile/seller", label: "Seller dashboard", icon: BarChart3 },
   { href: "/profile/listings", label: "My listings", icon: Package },
+  { href: "/orders?role=seller", label: "Sales", icon: ShoppingBag },
   { href: "/saved", label: "Saved", icon: Heart },
   { href: "/orders", label: "Orders", icon: ShoppingBag },
   { href: "/profile/wallet", label: "Wallet", icon: Wallet },

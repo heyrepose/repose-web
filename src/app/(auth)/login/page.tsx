@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch, getErrorToastMessage } from "@/lib/api-client";
 import { useAuthStore, type AuthUser } from "@/lib/auth-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -68,10 +68,9 @@ function LoginForm() {
       toast("Welcome back", "success");
       router.replace(redirect);
     } catch (e) {
-      const message =
-        e instanceof ApiError ? e.message : "Login failed. Try again.";
+      const message = getErrorToastMessage(e, "Login failed. Try again.");
       setFormError(message);
-      toast(message, "error");
+      toast("Login failed. Try again.", "error", e);
     }
   }
 

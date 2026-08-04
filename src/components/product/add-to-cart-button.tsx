@@ -2,7 +2,7 @@
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ShoppingBag } from "lucide-react";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch } from "@/lib/api-client";
 import { useRequireAuth } from "@/lib/hooks";
 import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
@@ -23,10 +23,7 @@ export function AddToCartButton({ listingId }: { listingId: string }) {
       toast("Added to bag", "success");
     },
     onError: (e) => {
-      toast(
-        e instanceof ApiError ? e.message : "Could not add to bag",
-        "error",
-      );
+      toast("Could not add to bag", "error", e);
     },
   });
 

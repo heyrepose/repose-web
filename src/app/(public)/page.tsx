@@ -1,9 +1,9 @@
 import Link from "next/link";
-import Image from "next/image";
 import type { ProductCardItem } from "@repose/api-types";
 import { ProductGrid } from "@/components/product/product-grid";
 import { RecentlyViewedRail } from "@/components/product/recently-viewed-rail";
 import { serverFetch } from "@/lib/api-client";
+import { categoryIcon } from "@/lib/category-icons";
 import { cn } from "@/lib/utils";
 
 export const revalidate = 60;
@@ -23,12 +23,11 @@ type Category = {
   id: string;
   name: string;
   slug: string;
-  bannerUrl?: string | null;
 };
 
 const CATEGORY_TAGLINES: Record<string, string> = {
-  women: "Curated Essentials",
-  men: "Wardrobe Staples",
+  women: "Curated essentials",
+  men: "Wardrobe staples",
   shoes: "All genders",
   bags: "Handbags & totes",
   accessories: "Finishing touches",
@@ -78,30 +77,28 @@ export default async function HomePage() {
         <section>
           <h2 className="mb-4 text-lg font-semibold">Shop by category</h2>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-5">
-            {activeCategories.map((c) => (
-              <Link
-                key={c.id}
-                href={`/category/${c.slug}`}
-                className="group relative aspect-[4/5] overflow-hidden rounded-card border border-card-border bg-accent-soft shadow-card"
-              >
-                {c.bannerUrl ? (
-                  <Image
-                    src={c.bannerUrl}
-                    alt={c.name}
-                    fill
-                    sizes="(max-width: 768px) 50vw, 20vw"
-                    className="object-cover transition-transform duration-500 group-hover:scale-105"
-                  />
-                ) : null}
-                <div className="absolute inset-0 bg-gradient-to-t from-text/70 via-text/10 to-transparent" />
-                <div className="absolute inset-x-0 bottom-0 p-3 text-surface">
-                  <p className="text-base font-semibold">{c.name}</p>
-                  <p className="text-xs text-surface/80">
-                    {CATEGORY_TAGLINES[c.slug] ?? "Shop now"}
-                  </p>
-                </div>
-              </Link>
-            ))}
+            {activeCategories.map((c) => {
+              const Icon = categoryIcon(c.slug);
+              return (
+                <Link
+                  key={c.id}
+                  href={`/category/${c.slug}`}
+                  className="group flex flex-col items-center gap-3 rounded-card border border-card-border bg-surface p-5 shadow-card transition-colors hover:border-primary/40 hover:bg-accent-soft/40"
+                >
+                  <span className="flex h-14 w-14 items-center justify-center rounded-card bg-accent-soft text-primary">
+                    <Icon className="h-7 w-7" strokeWidth={1.5} aria-hidden />
+                  </span>
+                  <span className="text-center">
+                    <span className="block text-base font-semibold text-text">
+                      {c.name}
+                    </span>
+                    <span className="mt-0.5 block text-xs text-muted">
+                      {CATEGORY_TAGLINES[c.slug] ?? "Shop now"}
+                    </span>
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         </section>
       ) : null}

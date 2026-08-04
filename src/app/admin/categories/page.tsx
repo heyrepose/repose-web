@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -45,10 +45,7 @@ export default function AdminCategoriesPage() {
       );
     },
     onError: (e) =>
-      toast(
-        e instanceof ApiError ? e.message : "Could not update category",
-        "error",
-      ),
+      toast("Could not update category", "error", e),
   });
 
   return (

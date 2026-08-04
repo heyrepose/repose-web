@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ChevronRight, Bell, Shield, User, Wallet } from "lucide-react";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch } from "@/lib/api-client";
 import { useAuth } from "@/lib/hooks";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
@@ -61,7 +61,7 @@ export default function SettingsPage() {
       toast("Preferences saved", "success");
     },
     onError: (e) =>
-      toast(e instanceof ApiError ? e.message : "Could not save", "error"),
+      toast("Could not save", "error", e),
   });
 
   return (

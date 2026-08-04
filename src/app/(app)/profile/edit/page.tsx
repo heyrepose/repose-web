@@ -5,7 +5,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -66,7 +66,7 @@ export default function EditProfilePage() {
       toast("Profile updated", "success");
     },
     onError: (e) =>
-      toast(e instanceof ApiError ? e.message : "Could not save profile", "error"),
+      toast("Could not save profile", "error", e),
   });
 
   if (isLoading) {

@@ -18,6 +18,33 @@ export class ApiError extends Error {
   }
 }
 
+/** User-facing toast copy; in development includes status, errorCode, and details. */
+export function getErrorToastMessage(
+  error: unknown,
+  fallback: string,
+): string {
+  const isDev = process.env.NODE_ENV === "development";
+
+  if (error instanceof ApiError) {
+    if (!isDev) return error.message;
+    const lines = [error.message, `${error.statusCode} · ${error.errorCode}`];
+    if (error.details && Object.keys(error.details).length > 0) {
+      try {
+        lines.push(JSON.stringify(error.details, null, 2));
+      } catch {
+        // ignore non-serializable details
+      }
+    }
+    return lines.join("\n");
+  }
+
+  if (isDev && error instanceof Error) {
+    return `${fallback}\n${error.name}: ${error.message}`;
+  }
+
+  return fallback;
+}
+
 export function getApiBaseUrl(): string {
   return API_BASE;
 }

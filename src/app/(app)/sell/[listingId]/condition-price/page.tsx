@@ -3,13 +3,14 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import type { ListingCondition } from "@repose/api-types";
 import { CONDITION_BADGE } from "@repose/ui";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
 import { useParams } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { Check } from "lucide-react";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch, getErrorToastMessage } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { useToast } from "@/components/ui/toast";
@@ -32,28 +33,66 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+type ListingDetail = {
+  id: string;
+  status: string;
+  condition?: ListingCondition | null;
+  priceAed?: string | null;
+};
+
 export default function SellConditionPricePage() {
   const { listingId } = useParams<{ listingId: string }>();
   const { toast } = useToast();
   const [publishedId, setPublishedId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
+  const { data: listing, isLoading } = useQuery({
+    queryKey: ["listing", listingId],
+    queryFn: () => apiFetch<ListingDetail>(`/listings/${listingId}`),
+  });
+
   const {
     register,
     handleSubmit,
     watch,
     setValue,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
     defaultValues: { condition: "VERY_GOOD" },
   });
 
+  useEffect(() => {
+    if (listing) {
+      reset({
+        condition: listing.condition ?? "VERY_GOOD",
+        priceAed: listing.priceAed ?? "",
+      });
+      if (listing.status === "ACTIVE") {
+        setPublishedId(listing.id);
+      }
+    }
+  }, [listing, reset]);
+
   const condition = watch("condition");
 
   async function onSubmit(values: FormValues) {
     setFormError(null);
     try {
+      if (listing?.status === "ACTIVE") {
+        await apiFetch(`/listings/${listingId}`, {
+          method: "PATCH",
+          body: JSON.stringify({
+            condition: values.condition,
+            priceAed: values.priceAed,
+          }),
+        });
+        setPublishedId(listingId);
+        toast("Listing updated", "success");
+        return;
+      }
+
       const data = await apiFetch<{ id: string; status: string }>(
         `/listings/${listingId}/publish`,
         {
@@ -67,10 +106,9 @@ export default function SellConditionPricePage() {
       setPublishedId(data.id);
       toast("Listing published", "success");
     } catch (e) {
-      const message =
-        e instanceof ApiError ? e.message : "Could not publish listing.";
+      const message = getErrorToastMessage(e, "Could not publish listing.");
       setFormError(message);
-      toast(message, "error");
+      toast("Could not publish listing.", "error", e);
     }
   }
 
@@ -88,6 +126,14 @@ export default function SellConditionPricePage() {
     toast("Link copied", "success");
   }
 
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Spinner />
+      </div>
+    );
+  }
+
   if (publishedId) {
     return (
       <div className="mx-auto flex max-w-lg flex-col items-center gap-5 py-8 text-center animate-scale-in">
@@ -103,6 +149,11 @@ export default function SellConditionPricePage() {
         <div className="flex w-full flex-col gap-3">
           <Link href={`/listing/${publishedId}`} className="w-full">
             <Button className="w-full">View listing</Button>
+          </Link>
+          <Link href={`/sell/${listingId}/edit`} className="w-full">
+            <Button variant="outline" className="w-full">
+              Edit listing
+            </Button>
           </Link>
           <Button variant="outline" className="w-full" onClick={shareListing}>
             Share link

@@ -85,3 +85,11 @@
     transform: scale(1);
   }
 }
+
+/* Next.js build "N" sits bottom-left; lift it above the mobile bottom nav. */
+@media (max-width: 767px) {
+  #__next-build-watcher {
+    bottom: 5.5rem !important;
+    z-index: 50 !important;
+  }
+}

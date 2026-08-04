@@ -62,7 +62,7 @@ export function ProductGrid({
       void qc.invalidateQueries({ queryKey: ["saved"] });
       toast(next ? "Saved" : "Removed from saved", "success");
     },
-    onError: () => toast("Could not update saved item", "error"),
+    onError: (e) => toast("Could not update saved item", "error", e),
   });
 
   if (!items.length) {

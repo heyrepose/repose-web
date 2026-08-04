@@ -1,11 +1,12 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
+import { useQuery } from "@tanstack/react-query";
 import { useParams, useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch, getErrorToastMessage } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -21,17 +22,41 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
+type ListingDetail = {
+  title?: string | null;
+  brand?: string | null;
+  size?: string | null;
+  description?: string | null;
+};
+
 export default function SellDetailsPage() {
   const { listingId } = useParams<{ listingId: string }>();
   const router = useRouter();
   const { toast } = useToast();
   const [formError, setFormError] = useState<string | null>(null);
 
+  const { data: listing, isLoading } = useQuery({
+    queryKey: ["listing", listingId],
+    queryFn: () => apiFetch<ListingDetail>(`/listings/${listingId}`),
+  });
+
   const {
     register,
     handleSubmit,
+    reset,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
+
+  useEffect(() => {
+    if (listing) {
+      reset({
+        title: listing.title ?? "",
+        brand: listing.brand ?? "",
+        size: listing.size ?? "",
+        description: listing.description ?? "",
+      });
+    }
+  }, [listing, reset]);
 
   async function onSubmit(values: FormValues) {
     setFormError(null);
@@ -47,11 +72,18 @@ export default function SellDetailsPage() {
       });
       router.push(`/sell/${listingId}/condition-price`);
     } catch (e) {
-      const message =
-        e instanceof ApiError ? e.message : "Could not save details.";
+      const message = getErrorToastMessage(e, "Could not save details.");
       setFormError(message);
-      toast(message, "error");
+      toast("Could not save details.", "error", e);
     }
+  }
+
+  if (isLoading) {
+    return (
+      <div className="flex justify-center py-12">
+        <Spinner />
+      </div>
+    );
   }
 
   return (

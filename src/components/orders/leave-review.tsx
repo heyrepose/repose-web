@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 import { Star } from "lucide-react";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
 import { cn } from "@/lib/utils";
@@ -27,7 +27,7 @@ export function LeaveReview({ orderId }: { orderId: string }) {
       void qc.invalidateQueries({ queryKey: ["order", orderId] });
     },
     onError: (e) =>
-      toast(e instanceof ApiError ? e.message : "Could not submit review", "error"),
+      toast("Could not submit review", "error", e),
   });
 
   if (done) {

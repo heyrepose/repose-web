@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch, getErrorToastMessage } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -70,10 +70,9 @@ export default function SignupPage() {
         router.push("/login");
       }
     } catch (e) {
-      const message =
-        e instanceof ApiError ? e.message : "Signup failed. Try again.";
+      const message = getErrorToastMessage(e, "Signup failed. Try again.");
       setFormError(message);
-      toast(message, "error");
+      toast("Signup failed. Try again.", "error", e);
     }
   }
 

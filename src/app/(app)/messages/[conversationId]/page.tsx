@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch } from "@/lib/api-client";
 import { useAuth } from "@/lib/hooks";
 import { getChatSocket } from "@/lib/socket";
 import { Spinner } from "@/components/ui/spinner";
@@ -86,11 +86,7 @@ export default function ConversationPage() {
         queryKey: ["messages", conversationId],
       });
     },
-    onError: (e) =>
-      toast(
-        e instanceof ApiError ? e.message : "Could not send message",
-        "error",
-      ),
+    onError: (e) => toast("Could not send message", "error", e),
   });
 
   return (

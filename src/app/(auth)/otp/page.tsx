@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch, getErrorToastMessage } from "@/lib/api-client";
 import { useAuthStore, type AuthUser } from "@/lib/auth-store";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -61,10 +61,9 @@ function OtpForm() {
       toast("You're signed in", "success");
       router.replace("/");
     } catch (e) {
-      const message =
-        e instanceof ApiError ? e.message : "Invalid code. Try again.";
+      const message = getErrorToastMessage(e, "Invalid code. Try again.");
       setFormError(message);
-      toast(message, "error");
+      toast("Invalid code. Try again.", "error", e);
     }
   }
 

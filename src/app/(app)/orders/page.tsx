@@ -3,7 +3,8 @@
 import { useQuery } from "@tanstack/react-query";
 import Image from "next/image";
 import Link from "next/link";
-import { useEffect, useState } from "react";
+import { useEffect, useState, Suspense } from "react";
+import { useSearchParams } from "next/navigation";
 import { Package } from "lucide-react";
 import { apiFetch } from "@/lib/api-client";
 import { formatAed, cn } from "@/lib/utils";
@@ -26,8 +27,8 @@ type OrderSummary = {
 
 const STATUS_FILTERS = [
   { value: "", label: "All" },
+  { value: "PAID_HELD", label: "To ship" },
   { value: "PENDING_PAYMENT", label: "Pending" },
-  { value: "PAID_HELD", label: "Paid" },
   { value: "SHIPPED", label: "Shipped" },
   { value: "DELIVERED", label: "Delivered" },
   { value: "RELEASED", label: "Complete" },
@@ -64,9 +65,33 @@ function nextStep(status: string, role: "buyer" | "seller"): string {
 }
 
 export default function OrdersPage() {
-  const [role, setRole] = useState<"buyer" | "seller">("buyer");
-  const [status, setStatus] = useState("");
+  return (
+    <Suspense
+      fallback={
+        <div className="flex justify-center py-12">
+          <Spinner />
+        </div>
+      }
+    >
+      <OrdersInner />
+    </Suspense>
+  );
+}
+
+function OrdersInner() {
+  const searchParams = useSearchParams();
+  const initialRole =
+    searchParams.get("role") === "seller" ? "seller" : "buyer";
+  const [role, setRole] = useState<"buyer" | "seller">(initialRole);
+  const [status, setStatus] = useState(
+    searchParams.get("status") ??
+      (initialRole === "seller" ? "PAID_HELD" : ""),
+  );
   const queryClient = useQueryClient();
+
+  useEffect(() => {
+    if (searchParams.get("role") === "seller") setRole("seller");
+  }, [searchParams]);
 
   const { data, isLoading, error } = useQuery({
     queryKey: ["orders", role, status],
@@ -88,6 +113,11 @@ export default function OrdersPage() {
     };
   }, [queryClient]);
 
+  function switchRole(next: "buyer" | "seller") {
+    setRole(next);
+    setStatus(next === "seller" ? "PAID_HELD" : "");
+  }
+
   return (
     <div className="mx-auto max-w-lg">
       <h1 className="text-2xl font-semibold">Orders</h1>
@@ -98,7 +128,7 @@ export default function OrdersPage() {
             key={r}
             size="sm"
             variant={role === r ? "primary" : "outline"}
-            onClick={() => setRole(r)}
+            onClick={() => switchRole(r)}
           >
             {r === "buyer" ? "Buying" : "Selling"}
           </Button>

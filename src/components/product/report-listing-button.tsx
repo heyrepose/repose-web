@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useMutation } from "@tanstack/react-query";
 import { Flag } from "lucide-react";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch } from "@/lib/api-client";
 import { useRequireAuth } from "@/lib/hooks";
 import { useToast } from "@/components/ui/toast";
 import { Sheet } from "@/components/ui/sheet";
@@ -40,7 +40,7 @@ export function ReportListingButton({ listingId }: { listingId: string }) {
       setNote("");
     },
     onError: (e) =>
-      toast(e instanceof ApiError ? e.message : "Could not report", "error"),
+      toast("Could not report", "error", e),
   });
 
   return (

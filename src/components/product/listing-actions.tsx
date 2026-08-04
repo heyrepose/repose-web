@@ -4,7 +4,7 @@ import { useMutation } from "@tanstack/react-query";
 import { Heart, MessageCircle } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
-import { apiFetch, ApiError } from "@/lib/api-client";
+import { apiFetch } from "@/lib/api-client";
 import { useRequireAuth } from "@/lib/hooks";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
@@ -39,7 +39,7 @@ export function ListingActions({
       toast(next ? "Saved to wishlist" : "Removed from saved", "success");
     },
     onError: (e) =>
-      toast(e instanceof ApiError ? e.message : "Could not update saved", "error"),
+      toast("Could not update saved", "error", e),
   });
 
   const messageMutation = useMutation({
@@ -55,7 +55,7 @@ export function ListingActions({
       router.push(`/messages/${conv.id}`);
     },
     onError: (e) =>
-      toast(e instanceof ApiError ? e.message : "Could not start chat", "error"),
+      toast("Could not start chat", "error", e),
   });
 
   return (
