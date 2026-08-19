@@ -1,9 +1,8 @@
 "use client";
 
 import { useAuth } from "@/lib/hooks";
-import { ListingActions } from "@/components/product/listing-actions";
+import { MessageSellerButton } from "@/components/product/listing-actions";
 import { BuyButton } from "@/components/product/buy-button";
-import { AddToCartButton } from "@/components/product/add-to-cart-button";
 import { OwnerListingActions } from "@/components/product/owner-listing-actions";
 import { ReportListingButton } from "@/components/product/report-listing-button";
 
@@ -34,28 +33,18 @@ export function ListingCtaBlock({
 
   return (
     <div className="flex flex-col gap-3">
-      {!compact ? (
-        <ListingActions
-          listingId={listingId}
-          sellerId={sellerId}
-          initiallySaved={Boolean(initiallySaved)}
-        />
-      ) : null}
       {status === "ACTIVE" ? (
         <>
           <BuyButton listingId={listingId} priceAed={priceAed} />
-          <AddToCartButton listingId={listingId} />
+          <MessageSellerButton listingId={listingId} sellerId={sellerId} />
         </>
       ) : !compact ? (
         <p className="text-sm text-muted">This item is not available.</p>
       ) : null}
-      {!compact ? <ReportListingButton listingId={listingId} /> : null}
-      {compact ? (
-        <ListingActions
-          listingId={listingId}
-          sellerId={sellerId}
-          initiallySaved={Boolean(initiallySaved)}
-        />
+      {!compact ? (
+        <div className="mt-2">
+          <ReportListingButton listingId={listingId} />
+        </div>
       ) : null}
     </div>
   );

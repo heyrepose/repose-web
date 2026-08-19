@@ -12,6 +12,11 @@ import {
 } from "@/components/product/recommendation-rails";
 import { RecentlyViewedRail } from "@/components/product/recently-viewed-rail";
 import { ListingCtaBlock } from "@/components/product/listing-cta-block";
+import { SaveButton } from "@/components/product/listing-actions";
+import { SellerCard } from "@/components/product/seller-card";
+import { DeliveryOptions } from "@/components/product/delivery-options";
+import { TrustSection } from "@/components/product/trust-section";
+import { DescriptionAccordion } from "@/components/product/description-accordion";
 import { serverFetch } from "@/lib/api-client";
 
 type ListingDetail = {
@@ -80,7 +85,6 @@ export default async function ListingPage({
   }
 
   const sold = listing.status === "SOLD";
-  const reviewCount = listing.seller.reviewCount ?? listing.seller.ratingCount;
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -103,6 +107,9 @@ export default async function ListingPage({
 
   return (
     <>
+      {/* Full-screen white background for the product page */}
+      <div className="fixed inset-0 -z-10 bg-surface pointer-events-none" aria-hidden="true" />
+
       <TrackListingView
         id={listing.id}
         title={listing.title}
@@ -116,108 +123,101 @@ export default async function ListingPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <div className="grid gap-8 lg:grid-cols-2">
-        <div className="relative">
-          <ImageGallery images={listing.images ?? []} alt={listing.title} />
-          {sold ? (
-            <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-card">
-              <SoldOverlay />
-            </div>
-          ) : null}
-        </div>
-
-        <div className="flex flex-col gap-5 lg:pb-28">
-          <div>
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              {listing.isFeatured ? <RareFindBadge /> : null}
-              {listing.category ? (
-                <Link
-                  href={`/category/${listing.category.slug}`}
-                  className="text-xs font-medium uppercase tracking-wide text-muted"
-                >
-                  {listing.category.name}
-                </Link>
-              ) : null}
-            </div>
-            {listing.brand ? (
-              <p className="text-sm font-medium text-muted">{listing.brand}</p>
+      
+      {/* Container: Max width 1280px, 8pt grid base (gap-8/10 etc) */}
+      <div className="mx-auto max-w-[1440px] pt-4 lg:pt-8 pb-16">
+        <div className="grid gap-8 lg:grid-cols-[11fr_9fr] xl:gap-14 items-start">
+          
+          {/* Left: Image Gallery (~55%) */}
+          <div className="relative">
+            <ImageGallery images={listing.images ?? []} alt={listing.title} />
+            {listing.isFeatured && (
+              <div className="absolute top-4 right-4 z-20 pointer-events-none">
+                <RareFindBadge />
+              </div>
+            )}
+            {sold ? (
+              <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-card">
+                <SoldOverlay />
+              </div>
             ) : null}
-            <h1 className="mt-1 text-2xl font-semibold leading-tight md:text-3xl">
-              {listing.title}
-            </h1>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <PriceTag priceAed={listing.priceAed} className="text-2xl" />
-              <ConditionBadge condition={listing.condition} />
-              {listing.size ? (
-                <span className="rounded-pill border border-card-border bg-surface px-3 py-1 text-sm text-muted">
-                  Size {listing.size}
-                </span>
-              ) : null}
-            </div>
           </div>
 
-          {listing.description ? (
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-text/90">
-              {listing.description}
-            </p>
-          ) : null}
+          {/* Right: Product Info Panel (Sticky, ~45%) */}
+          <div className="flex flex-col lg:sticky lg:top-24 pb-8 lg:pb-0">
+            <div className="flex justify-between items-start gap-4">
+              <div>
+                {listing.brand ? (
+                  <h2 className="text-[13px] font-bold uppercase tracking-widest text-text font-sans mb-1.5">
+                    {listing.brand}
+                  </h2>
+                ) : null}
+                <h1 className="text-3xl lg:text-[2.5rem] font-bold font-sans text-text leading-[1.1] mb-2">
+                  {listing.title}
+                </h1>
+              </div>
+              <div className="-mt-2 -mr-2">
+                <SaveButton listingId={listing.id} initiallySaved={Boolean(listing.isSavedByCurrentUser)} />
+              </div>
+            </div>
 
-          <Link
-            href={`/seller/${listing.seller.username}`}
-            className="flex items-center gap-3 rounded-card border border-card-border bg-surface p-3 shadow-card"
-          >
-            <div className="relative h-12 w-12 overflow-hidden rounded-full bg-accent-soft">
-              {listing.seller.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={listing.seller.avatarUrl}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <span className="flex h-full w-full items-center justify-center text-sm font-semibold text-primary">
-                  {listing.seller.username.slice(0, 1).toUpperCase()}
+            <div className="mt-2 mb-8">
+              <PriceTag priceAed={listing.priceAed} className="text-3xl mb-6 inline-block" />
+              <div className="flex flex-wrap items-center gap-[10px]">
+                <ConditionBadge condition={listing.condition} />
+                
+                {/* Size Pill */}
+                {listing.size ? (
+                  <span className="flex items-center justify-center rounded-full border border-[#E0E0E0] bg-surface px-4 h-10 text-xs font-bold uppercase tracking-wider text-[#888888]">
+                    Size: {listing.size}
+                  </span>
+                ) : null}
+                
+                {/* Mock Color Pill */}
+                <span className="flex items-center justify-center rounded-full border border-[#E0E0E0] bg-surface px-4 h-10 text-xs font-bold uppercase tracking-wider text-[#888888]">
+                  Color: Black
                 </span>
-              )}
+              </div>
             </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-primary">
-                @{listing.seller.username}
-              </p>
-              {listing.seller.ratingAvg != null ? (
-                <p className="text-xs text-muted">
-                  {Number(listing.seller.ratingAvg).toFixed(1)}★
-                  {reviewCount ? ` · ${reviewCount} reviews` : ""} — view
-                  closet
-                </p>
-              ) : (
-                <p className="text-xs text-muted">View closet</p>
-              )}
-            </div>
-          </Link>
 
-          <div className="hidden flex-col gap-3 lg:flex">
-            <ListingCtaBlock
-              listingId={listing.id}
-              sellerId={listing.seller.id}
-              status={listing.status}
-              priceAed={listing.priceAed}
-              initiallySaved={Boolean(listing.isSavedByCurrentUser)}
-            />
+            {/* CTAs */}
+            <div className="hidden lg:block w-full">
+              <ListingCtaBlock
+                listingId={listing.id}
+                sellerId={listing.seller.id}
+                status={listing.status}
+                priceAed={listing.priceAed}
+                initiallySaved={Boolean(listing.isSavedByCurrentUser)}
+              />
+            </div>
+
+            {/* Seller Card */}
+            <SellerCard seller={listing.seller} />
+
+            {/* Delivery Options */}
+            <DeliveryOptions />
+
+            {/* Description Accordion */}
+            <DescriptionAccordion description={listing.description} condition={listing.condition} />
+
+            {/* Trust Section */}
+            <TrustSection />
           </div>
         </div>
       </div>
 
-      <SimilarListingsRail listingId={listing.id} />
-      <SellerListingsRail
-        sellerId={listing.seller.id}
-        excludeId={listing.id}
-      />
-      <RecentlyViewedRail excludeId={listing.id} />
+      <div className="mx-auto max-w-[1440px]">
+        <SimilarListingsRail listingId={listing.id} />
+        <SellerListingsRail
+          sellerId={listing.seller.id}
+          excludeId={listing.id}
+        />
+        <RecentlyViewedRail excludeId={listing.id} />
+      </div>
 
       {/* Sticky mobile CTA */}
-      <div className="fixed inset-x-0 bottom-[72px] z-30 border-t border-card-border bg-surface/95 px-screen py-3 backdrop-blur lg:hidden">
-        <div className="mx-auto flex max-w-6xl flex-col gap-2">
+      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-card-border bg-surface/95 px-screen py-4 pb-safe backdrop-blur lg:hidden shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
+        <div className="mx-auto flex max-w-[1440px] flex-col gap-2">
           <ListingCtaBlock
             listingId={listing.id}
             sellerId={listing.seller.id}

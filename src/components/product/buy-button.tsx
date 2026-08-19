@@ -16,8 +16,7 @@ export function BuyButton({
 
   return (
     <Button
-      size="lg"
-      className="w-full"
+      className="w-full h-14 rounded-full font-bold shadow-none hover:shadow-[0_4px_12px_rgba(38,74,46,0.25)] transition-shadow"
       onClick={() => {
         if (!requireAuth()) return;
         sessionStorage.setItem(

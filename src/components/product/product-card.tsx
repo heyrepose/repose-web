@@ -49,6 +49,11 @@ export function ProductCard({ item, onSave, saved, className }: Props) {
           ) : null}
         </div>
         <div className="flex flex-col gap-1.5 p-3">
+          {item.brand ? (
+            <p className="text-xs font-semibold uppercase tracking-wider text-muted">
+              {item.brand}
+            </p>
+          ) : null}
           <h3 className="line-clamp-2 text-sm font-medium leading-snug">
             {item.title || "Untitled"}
           </h3>

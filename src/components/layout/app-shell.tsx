@@ -12,7 +12,7 @@ export function AppShell({
   return (
     <div className="flex min-h-screen flex-col">
       <TopAppBar />
-      <main className="mx-auto w-full max-w-6xl flex-1 px-screen py-4 pb-24 md:pb-8">
+      <main className="mx-auto w-full max-w-[1440px] flex-1 px-4 lg:px-8 py-4 pb-24 md:pb-8">
         {children}
       </main>
       {showBottomNav ? <BottomNav /> : null}
