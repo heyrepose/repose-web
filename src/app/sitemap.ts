@@ -2,8 +2,7 @@ import type { MetadataRoute } from "next";
 import { serverFetch } from "@/lib/api-client";
 import type { ProductCardItem } from "@repose/api-types";
 
-const SITE =
-  process.env.NEXT_PUBLIC_SITE_URL ?? "http://localhost:4001";
+const SITE = process.env.SITE_URL ?? "http://localhost:4001";
 
 type Category = { slug: string };
 
