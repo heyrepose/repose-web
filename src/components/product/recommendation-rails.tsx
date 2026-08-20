@@ -14,6 +14,7 @@ type RawCard = {
   mainImageUrl: string | null;
   isFeatured?: boolean;
   status?: string;
+  brand?: string | null;
 };
 
 function toGridItems(data: RawCard[]): ProductCardItem[] {
@@ -25,6 +26,7 @@ function toGridItems(data: RawCard[]): ProductCardItem[] {
     mainImageUrl: i.mainImageUrl,
     isFeatured: i.isFeatured,
     status: i.status as ProductCardItem["status"],
+    brand: i.brand,
   }));
 }
 

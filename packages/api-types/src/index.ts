@@ -89,4 +89,5 @@ export interface ProductCardItem {
   mainImageUrl: string | null;
   isFeatured?: boolean;
   status?: ListingStatus;
+  brand?: string | null;
 }

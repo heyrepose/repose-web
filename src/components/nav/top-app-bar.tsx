@@ -85,8 +85,8 @@ export function TopAppBar() {
   }
 
   return (
-    <header className="sticky top-0 z-40 border-b border-card-border bg-bg/95 backdrop-blur">
-      <div className="mx-auto flex max-w-6xl items-center gap-3 px-screen py-3">
+    <header className="sticky top-0 z-40 bg-bg/95 backdrop-blur">
+      <div className="mx-auto flex max-w-[1440px] items-center gap-3 px-4 lg:px-8 py-3">
         <Link
           href="/"
           className="shrink-0 font-brand text-[1.65rem] leading-none text-primary"

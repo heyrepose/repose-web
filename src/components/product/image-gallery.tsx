@@ -9,18 +9,14 @@ type Props = {
   images: Array<{ url: string; sortOrder?: number }>;
   alt: string;
   className?: string;
-  sold?: boolean;
 };
 
-export function ImageGallery({ images, alt, className, sold }: Props) {
+export function ImageGallery({ images, alt, className }: Props) {
   const sorted = [...images].sort(
     (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
   );
   const [index, setIndex] = useState(0);
   const [viewerOpen, setViewerOpen] = useState(false);
-
-  const current = sorted[index]?.url;
-  const multi = sorted.length > 1;
 
   const go = useCallback(
     (dir: -1 | 1) => {
@@ -49,7 +45,7 @@ export function ImageGallery({ images, alt, className, sold }: Props) {
     return (
       <div
         className={cn(
-          "flex aspect-[4/5] items-center justify-center rounded-[28px] bg-accent-soft text-sm text-muted shadow-card",
+          "flex aspect-[4/5] items-center justify-center rounded-card bg-accent-soft text-muted",
           className,
         )}
       >
@@ -60,73 +56,68 @@ export function ImageGallery({ images, alt, className, sold }: Props) {
 
   return (
     <>
-      <div className={cn("relative", className)}>
-        <div className="relative aspect-[4/5] w-full overflow-hidden rounded-[28px] bg-accent-soft shadow-[0_8px_28px_rgba(0,0,0,0.08)]">
-          <button
-            type="button"
-            className="absolute inset-0 z-0"
-            onClick={() => setViewerOpen(true)}
-            aria-label="Open full image"
-          >
+      <div className={cn("flex flex-col gap-3 md:flex-row md:gap-4", className)}>
+        {sorted.length > 1 ? (
+          <div className="order-2 flex gap-2 overflow-x-auto pb-2 scrollbar-hide md:order-1 md:flex-col md:gap-3 md:overflow-y-auto md:pb-0 md:pr-2">
+            {sorted.map((img, i) => (
+              <button
+                key={`${img.url}-${i}`}
+                type="button"
+                onClick={() => setIndex(i)}
+                onMouseEnter={() => setIndex(i)}
+                className={cn(
+                  "relative h-20 w-16 shrink-0 overflow-hidden rounded-card border-2 transition-all duration-200 md:h-32 md:w-24",
+                  i === index
+                    ? "border-primary opacity-100"
+                    : "border-transparent opacity-60 hover:opacity-100",
+                )}
+              >
+                <Image
+                  src={img.url}
+                  alt=""
+                  fill
+                  className="object-cover"
+                  sizes="(max-width: 768px) 64px, 128px"
+                />
+              </button>
+            ))}
+          </div>
+        ) : null}
+
+        <button
+          type="button"
+          className="relative order-1 aspect-[4/5] w-full flex-1 overflow-hidden rounded-card border border-card-border bg-accent-soft shadow-card md:order-2 md:aspect-auto md:h-[calc(100vh-160px)] md:max-h-[720px]"
+          onClick={() => setViewerOpen(true)}
+          aria-label="Open image viewer"
+        >
+          {sorted.map((img, i) => (
             <Image
-              src={current}
+              key={img.url}
+              src={img.url}
               alt={alt}
               fill
-              priority
-              className="object-cover"
-              sizes="(max-width: 768px) 100vw, 520px"
+              priority={i === 0}
+              className={cn(
+                "object-cover transition-opacity duration-300 ease-in-out",
+                i === index ? "z-10 opacity-100" : "z-0 opacity-0",
+              )}
+              sizes="(max-width: 1024px) 100vw, 50vw"
             />
-          </button>
-
-          {sold ? (
-            <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center bg-text/40">
-              <span className="rounded-pill bg-surface px-5 py-2 text-sm font-bold tracking-[0.2em] text-text">
-                SOLD
-              </span>
+          ))}
+          {sorted.length > 1 ? (
+            <div className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 gap-1.5 md:hidden">
+              {sorted.map((_, i) => (
+                <span
+                  key={i}
+                  className={cn(
+                    "h-1.5 w-1.5 rounded-full transition-colors duration-300",
+                    i === index ? "bg-surface" : "bg-surface/50",
+                  )}
+                />
+              ))}
             </div>
           ) : null}
-
-          {multi ? (
-            <>
-              <button
-                type="button"
-                aria-label="Previous photo"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  go(-1);
-                }}
-                className="absolute left-3 top-1/2 z-[2] flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-surface/95 text-text shadow-card"
-              >
-                <ChevronLeft className="h-5 w-5" strokeWidth={2} />
-              </button>
-              <button
-                type="button"
-                aria-label="Next photo"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  go(1);
-                }}
-                className="absolute right-3 top-1/2 z-[2] flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-surface/95 text-text shadow-card"
-              >
-                <ChevronRight className="h-5 w-5" strokeWidth={2} />
-              </button>
-
-              <div className="pointer-events-none absolute bottom-4 left-1/2 z-[2] flex -translate-x-1/2 gap-2">
-                {sorted.map((_, i) => (
-                  <span
-                    key={i}
-                    className={cn(
-                      "h-2 w-2 rounded-full transition-colors",
-                      i === index
-                        ? "bg-primary"
-                        : "bg-surface/90 ring-1 ring-text/10",
-                    )}
-                  />
-                ))}
-              </div>
-            </>
-          ) : null}
-        </div>
+        </button>
       </div>
 
       {viewerOpen ? (
@@ -145,7 +136,7 @@ export function ImageGallery({ images, alt, className, sold }: Props) {
             </button>
           </div>
           <div className="relative flex flex-1 items-center justify-center px-4">
-            {multi ? (
+            {sorted.length > 1 ? (
               <button
                 type="button"
                 aria-label="Previous"
@@ -156,15 +147,21 @@ export function ImageGallery({ images, alt, className, sold }: Props) {
               </button>
             ) : null}
             <div className="relative h-full max-h-[80vh] w-full max-w-lg">
-              <Image
-                src={sorted[index].url}
-                alt={alt}
-                fill
-                className="object-contain"
-                sizes="100vw"
-              />
+              {sorted.map((img, i) => (
+                <Image
+                  key={img.url}
+                  src={img.url}
+                  alt={alt}
+                  fill
+                  className={cn(
+                    "object-contain transition-opacity duration-300 ease-in-out",
+                    i === index ? "z-10 opacity-100" : "z-0 opacity-0",
+                  )}
+                  sizes="100vw"
+                />
+              ))}
             </div>
-            {multi ? (
+            {sorted.length > 1 ? (
               <button
                 type="button"
                 aria-label="Next"

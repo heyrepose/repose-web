@@ -1,11 +1,10 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { ChevronRight, Ruler, Sparkles, Tag } from "lucide-react";
 import type { ListingCondition } from "@repose/api-types";
-import { CONDITION_BADGE, type ListingConditionKey } from "@repose/ui";
+import { ConditionBadge } from "@/components/product/condition-badge";
 import { PriceTag } from "@/components/product/price-tag";
 import { ImageGallery } from "@/components/product/image-gallery";
-import { RareFindBadge } from "@/components/product/badges";
+import { RareFindBadge, SoldOverlay } from "@/components/product/badges";
 import { TrackListingView } from "@/components/product/track-listing-view";
 import {
   SimilarListingsRail,
@@ -13,7 +12,11 @@ import {
 } from "@/components/product/recommendation-rails";
 import { RecentlyViewedRail } from "@/components/product/recently-viewed-rail";
 import { ListingCtaBlock } from "@/components/product/listing-cta-block";
-import { ListingDetailChrome } from "@/components/product/listing-detail-chrome";
+import { SaveButton } from "@/components/product/listing-actions";
+import { SellerCard } from "@/components/product/seller-card";
+import { DeliveryOptions } from "@/components/product/delivery-options";
+import { TrustSection } from "@/components/product/trust-section";
+import { DescriptionAccordion } from "@/components/product/description-accordion";
 import { serverFetch } from "@/lib/api-client";
 
 type ListingDetail = {
@@ -58,13 +61,6 @@ export async function generateMetadata({
   };
 }
 
-function conditionLabel(condition: string): string {
-  return (
-    CONDITION_BADGE[condition as ListingConditionKey]?.label ??
-    condition.replace(/_/g, " ")
-  );
-}
-
 export default async function ListingPage({
   params,
 }: {
@@ -89,12 +85,6 @@ export default async function ListingPage({
   }
 
   const sold = listing.status === "SOLD";
-  const reviewCount = listing.seller.reviewCount ?? listing.seller.ratingCount;
-  const subtitle =
-    listing.brand ??
-    listing.category?.name ??
-    (listing.size ? `Size ${listing.size}` : null);
-
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -115,29 +105,13 @@ export default async function ListingPage({
     },
   };
 
-  const detailTiles = [
-    {
-      key: "condition",
-      label: "Condition",
-      value: conditionLabel(listing.condition),
-      icon: Sparkles,
-    },
-    {
-      key: "size",
-      label: "Size",
-      value: listing.size ?? "—",
-      icon: Ruler,
-    },
-    {
-      key: "brand",
-      label: "Brand",
-      value: listing.brand ?? "—",
-      icon: Tag,
-    },
-  ];
-
   return (
     <>
+      <div
+        className="pointer-events-none fixed inset-0 -z-10 bg-surface"
+        aria-hidden="true"
+      />
+
       <TrackListingView
         id={listing.id}
         title={listing.title}
@@ -152,151 +126,58 @@ export default async function ListingPage({
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
 
-      {/*
-        Phone/tablet: single column (chrome → gallery → details → sticky CTA)
-        Desktop (lg+): two columns — gallery left, details + buttons right
-      */}
-      <article className="mx-auto w-full max-w-lg pb-52 md:max-w-xl md:pb-44 lg:max-w-6xl lg:pb-12">
-        {/* Mobile chrome only — desktop chrome sits above the right column */}
-        <ListingDetailChrome
-          listingId={listing.id}
-          initiallySaved={Boolean(listing.isSavedByCurrentUser)}
-          className="mb-3 lg:hidden"
-        />
-
-        <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-10 xl:gap-12">
-          {/* Left: images */}
-          <div className="lg:sticky lg:top-20">
-            <ImageGallery
-              images={listing.images ?? []}
-              alt={listing.title}
-              sold={sold}
-            />
+      <div className="mx-auto max-w-[1440px] pb-28 pt-4 lg:pb-16 lg:pt-8">
+        <div className="grid items-start gap-8 lg:grid-cols-[11fr_9fr] xl:gap-14">
+          <div className="relative">
+            <ImageGallery images={listing.images ?? []} alt={listing.title} />
+            {listing.isFeatured ? (
+              <div className="pointer-events-none absolute right-4 top-4 z-20">
+                <RareFindBadge />
+              </div>
+            ) : null}
+            {sold ? (
+              <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-card">
+                <SoldOverlay />
+              </div>
+            ) : null}
           </div>
 
-          {/* Right: details + CTAs */}
-          <div className="flex min-w-0 flex-col">
-            <ListingDetailChrome
-              listingId={listing.id}
-              initiallySaved={Boolean(listing.isSavedByCurrentUser)}
-              className="mb-4 hidden lg:flex"
-            />
-
-            {/* Title, then brand, then price — full-width stack so long titles don't push price */}
-            <header className="mt-6 flex flex-col gap-3 lg:mt-0">
-              <div className="flex flex-wrap items-center gap-2">
-                {listing.isFeatured ? <RareFindBadge /> : null}
-                {listing.category ? (
-                  <Link
-                    href={`/category/${listing.category.slug}`}
-                    className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary"
-                  >
-                    {listing.category.name}
-                  </Link>
+          <div className="flex flex-col pb-8 lg:sticky lg:top-24 lg:pb-0">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                {listing.brand ? (
+                  <h2 className="mb-1.5 font-sans text-[13px] font-bold uppercase tracking-widest text-text">
+                    {listing.brand}
+                  </h2>
                 ) : null}
+                <h1 className="mb-2 font-sans text-3xl font-bold leading-[1.1] text-text lg:text-[2.5rem]">
+                  {listing.title}
+                </h1>
               </div>
+              <div className="-mr-2 -mt-2">
+                <SaveButton
+                  listingId={listing.id}
+                  initiallySaved={Boolean(listing.isSavedByCurrentUser)}
+                />
+              </div>
+            </div>
 
-              <h1 className="text-[1.65rem] font-semibold leading-[1.2] tracking-tight text-text md:text-3xl">
-                {listing.title}
-              </h1>
-
-              {subtitle ? (
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary/80">
-                  {listing.brand ? listing.brand : listing.category?.name}
-                  {listing.brand && listing.size ? " · " : null}
-                  {listing.brand && listing.size
-                    ? `Size ${listing.size}`
-                    : null}
-                  {!listing.brand && listing.size
-                    ? `Size ${listing.size}`
-                    : null}
-                </p>
-              ) : null}
-
+            <div className="mb-8 mt-2">
               <PriceTag
                 priceAed={listing.priceAed}
-                className="text-[1.75rem] font-semibold tabular-nums leading-none text-text md:text-[2rem]"
+                className="mb-6 inline-block text-3xl"
               />
-            </header>
-
-            {/* Description */}
-            <section className="mt-5 border-b border-card-border pb-5">
-              <p className="text-sm leading-relaxed text-text/85">
-                {listing.description?.trim()
-                  ? listing.description
-                  : "No description from the seller. Message them if you need more detail on fabric, fit, or wear."}
-              </p>
-            </section>
-
-            {/* Details grid */}
-            <section className="border-b border-card-border py-5">
-              <h2 className="mb-4 text-xs font-bold uppercase tracking-[0.18em] text-text">
-                Details
-              </h2>
-              <div className="grid grid-cols-3 gap-2 sm:gap-4">
-                {detailTiles.map(({ key, label, value, icon: Icon }) => (
-                  <div
-                    key={key}
-                    className="flex flex-col items-center gap-2 px-1 text-center"
-                  >
-                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-accent-soft text-primary">
-                      <Icon className="h-5 w-5" strokeWidth={1.6} />
-                    </span>
-                    <div>
-                      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-text">
-                        {label}
-                      </p>
-                      <p className="mt-0.5 text-xs leading-snug text-muted">
-                        {value}
-                      </p>
-                    </div>
-                  </div>
-                ))}
+              <div className="flex flex-wrap items-center gap-2.5">
+                <ConditionBadge condition={listing.condition} />
+                {listing.size ? (
+                  <span className="flex h-10 items-center justify-center rounded-full border border-card-border bg-surface px-4 text-xs font-bold uppercase tracking-wider text-muted">
+                    Size: {listing.size}
+                  </span>
+                ) : null}
               </div>
-            </section>
+            </div>
 
-            {/* Seller */}
-            <section className="py-5">
-              <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-text">
-                Seller
-              </h2>
-              <Link
-                href={`/seller/${listing.seller.username}`}
-                className="flex items-center gap-3 rounded-[20px] bg-surface p-3 shadow-card ring-1 ring-card-border transition-colors hover:bg-accent-soft/40"
-              >
-                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-accent-soft">
-                  {listing.seller.avatarUrl ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={listing.seller.avatarUrl}
-                      alt=""
-                      className="h-full w-full object-cover"
-                    />
-                  ) : (
-                    <span className="flex h-full w-full items-center justify-center text-sm font-semibold text-primary">
-                      {listing.seller.username.slice(0, 1).toUpperCase()}
-                    </span>
-                  )}
-                </div>
-                <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-text">
-                    @{listing.seller.username}
-                  </p>
-                  {listing.seller.ratingAvg != null ? (
-                    <p className="text-xs text-muted">
-                      {Number(listing.seller.ratingAvg).toFixed(1)}★
-                      {reviewCount ? ` · ${reviewCount} reviews` : ""}
-                    </p>
-                  ) : (
-                    <p className="text-xs text-muted">View closet</p>
-                  )}
-                </div>
-                <ChevronRight className="h-5 w-5 shrink-0 text-muted" />
-              </Link>
-            </section>
-
-            {/* Desktop CTAs — inline under details */}
-            <div className="mt-1 hidden lg:block">
+            <div className="hidden w-full lg:block">
               <ListingCtaBlock
                 listingId={listing.id}
                 sellerId={listing.seller.id}
@@ -304,29 +185,36 @@ export default async function ListingPage({
                 priceAed={listing.priceAed}
               />
             </div>
+
+            <SellerCard seller={listing.seller} />
+            <DeliveryOptions />
+            <DescriptionAccordion
+              description={listing.description}
+              condition={listing.condition}
+            />
+            <TrustSection />
           </div>
         </div>
+      </div>
 
-        {/* Rails full width below the grid */}
-        <div className="mt-10 space-y-2 border-t border-card-border pt-8 lg:mt-14">
-          <SimilarListingsRail listingId={listing.id} />
-          <SellerListingsRail
-            sellerId={listing.seller.id}
-            excludeId={listing.id}
-          />
-          <RecentlyViewedRail excludeId={listing.id} />
-        </div>
-      </article>
+      <div className="mx-auto max-w-[1440px] px-screen pb-24 lg:pb-8">
+        <SimilarListingsRail listingId={listing.id} />
+        <SellerListingsRail
+          sellerId={listing.seller.id}
+          excludeId={listing.id}
+        />
+        <RecentlyViewedRail excludeId={listing.id} />
+      </div>
 
-      {/* Sticky CTA — phone & tablet only */}
-      <div className="fixed inset-x-0 bottom-[calc(72px+env(safe-area-inset-bottom))] z-30 border-t border-card-border bg-surface/95 px-screen py-3 backdrop-blur md:bottom-[env(safe-area-inset-bottom)] lg:hidden">
-        <div className="mx-auto w-full max-w-lg md:max-w-xl">
+      {/* Sit above mobile bottom nav */}
+      <div className="fixed inset-x-0 bottom-[calc(72px+env(safe-area-inset-bottom))] z-30 border-t border-card-border bg-surface/95 px-screen py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] backdrop-blur lg:hidden">
+        <div className="mx-auto flex max-w-[1440px] flex-col gap-2">
           <ListingCtaBlock
             listingId={listing.id}
             sellerId={listing.seller.id}
             status={listing.status}
             priceAed={listing.priceAed}
-            stickyBar
+            compact
           />
         </div>
       </div>

@@ -1,23 +1,22 @@
 "use client";
 
 import { useMutation } from "@tanstack/react-query";
-import { Heart, MessageCircle } from "lucide-react";
+import { Heart } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { apiFetch } from "@/lib/api-client";
 import { useRequireAuth } from "@/lib/hooks";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
+import { cn } from "@/lib/utils";
 
-type Props = {
+type SaveProps = {
   listingId: string;
-  sellerId: string;
   initiallySaved: boolean;
 };
 
-export function ListingActions({ listingId, sellerId, initiallySaved }: Props) {
+export function SaveButton({ listingId, initiallySaved }: SaveProps) {
   const requireAuth = useRequireAuth();
-  const router = useRouter();
   const { toast } = useToast();
   const [saved, setSaved] = useState(initiallySaved);
 
@@ -37,6 +36,38 @@ export function ListingActions({ listingId, sellerId, initiallySaved }: Props) {
     onError: (e) => toast("Could not update saved", "error", e),
   });
 
+  return (
+    <button
+      disabled={saveMutation.isPending}
+      onClick={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (!requireAuth()) return;
+        saveMutation.mutate();
+      }}
+      className="flex h-[44px] w-[44px] items-center justify-center rounded-full transition-colors hover:bg-accent-soft"
+      aria-label="Save listing"
+    >
+      <Heart
+        className={cn(
+          "h-6 w-6 transition-transform hover:scale-110",
+          saved ? "fill-primary text-primary" : "text-text",
+        )}
+      />
+    </button>
+  );
+}
+
+type MessageProps = {
+  listingId: string;
+  sellerId: string;
+};
+
+export function MessageSellerButton({ listingId, sellerId }: MessageProps) {
+  const requireAuth = useRequireAuth();
+  const router = useRouter();
+  const { toast } = useToast();
+
   const messageMutation = useMutation({
     mutationFn: async () => {
       const conv = await apiFetch<{ id: string }>("/conversations", {
@@ -53,30 +84,15 @@ export function ListingActions({ listingId, sellerId, initiallySaved }: Props) {
   });
 
   return (
-    <div className="flex flex-col gap-2 sm:flex-row">
-      <Button
-        variant="outline"
-        className="flex-1"
-        disabled={saveMutation.isPending}
-        onClick={() => {
-          if (!requireAuth()) return;
-          saveMutation.mutate();
-        }}
-      >
-        <Heart className={saved ? "fill-primary" : undefined} />
-        {saved ? "Saved" : "Save"}
-      </Button>
-      <Button
-        className="flex-1"
-        disabled={messageMutation.isPending}
-        onClick={() => {
-          if (!requireAuth()) return;
-          messageMutation.mutate();
-        }}
-      >
-        <MessageCircle />
-        Message seller
-      </Button>
-    </div>
+    <Button
+      className="h-14 w-full rounded-full border-[1.5px] border-primary bg-transparent font-bold text-primary hover:bg-accent-soft"
+      disabled={messageMutation.isPending}
+      onClick={() => {
+        if (!requireAuth()) return;
+        messageMutation.mutate();
+      }}
+    >
+      Message Seller
+    </Button>
   );
 }
