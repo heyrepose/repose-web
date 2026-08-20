@@ -1,14 +1,35 @@
 "use client";
 
-import { useQuery } from "@tanstack/react-query";
+import {
+  useInfiniteQuery,
+  useQuery,
+} from "@tanstack/react-query";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useState, FormEvent } from "react";
-import { SlidersHorizontal, Search as SearchIcon } from "lucide-react";
+import {
+  Suspense,
+  useEffect,
+  useMemo,
+  useState,
+  FormEvent,
+} from "react";
+import {
+  SlidersHorizontal,
+  Search as SearchIcon,
+  X,
+} from "lucide-react";
 import type { ProductCardItem } from "@repose/api-types";
-import { apiFetchWithMeta, ApiError, apiFetch } from "@/lib/api-client";
+import { CONDITION_BADGE, type ListingConditionKey } from "@repose/ui";
+import {
+  apiFetchWithMeta,
+  ApiError,
+  apiFetch,
+} from "@/lib/api-client";
 import { ProductGrid } from "@/components/product/product-grid";
 import { TrendingRail } from "@/components/product/recommendation-rails";
-import { FilterDrawer, type FilterState } from "@/components/filters/filter-drawer";
+import {
+  FilterDrawer,
+  type FilterState,
+} from "@/components/filters/filter-drawer";
 import { Button } from "@/components/ui/button";
 import { Select } from "@/components/ui/select";
 import { Spinner } from "@/components/ui/spinner";
@@ -20,12 +41,36 @@ import {
   trackRecentSearch,
 } from "@/lib/history";
 
+type FacetBucket = { value: string; count: number };
+type SearchFacets = {
+  brand?: FacetBucket[];
+  size?: FacetBucket[];
+  condition?: FacetBucket[];
+};
+
+const FALLBACK_TRENDING = [
+  "Leather",
+  "Silk",
+  "Blazer",
+  "Loafers",
+  "Burberry",
+];
+
+function conditionLabel(value: string): string {
+  return (
+    CONDITION_BADGE[value as ListingConditionKey]?.label ??
+    value.replace(/_/g, " ")
+  );
+}
+
 function SearchInner() {
   const searchParams = useSearchParams();
   const router = useRouter();
 
-  const qParam = searchParams.get("q") ?? "";
-  const sortParam = searchParams.get("sort") ?? "relevance";
+  const qParam = searchParams.get("q")?.trim() ?? "";
+  // empty browse → newest; keyword search → relevance unless user set sort
+  const sortParam =
+    searchParams.get("sort") ?? (qParam ? "relevance" : "newest");
   const categoryParam = searchParams.get("category") ?? undefined;
   const brandParam = searchParams.get("brand") ?? undefined;
   const sizeParam = searchParams.get("size") ?? undefined;
@@ -57,6 +102,10 @@ function SearchInner() {
   const [recent, setRecent] = useState<string[]>([]);
 
   useEffect(() => {
+    setQ(qParam);
+  }, [qParam]);
+
+  useEffect(() => {
     setRecent(getRecentSearches());
   }, [qParam]);
 
@@ -67,34 +116,79 @@ function SearchInner() {
         "/categories",
         { skipAuth: true },
       ),
+    staleTime: 5 * 60_000,
   });
 
+  const { data: homeFeed } = useQuery({
+    queryKey: ["feed", "home", "tags"],
+    queryFn: () =>
+      apiFetch<{ trendingTags?: string[] }>("/feed/home", {
+        skipAuth: true,
+      }),
+    staleTime: 60_000,
+  });
+
+  const activeCategories = useMemo(
+    () => (categories ?? []).filter((c) => c.slug !== "kids"),
+    [categories],
+  );
+
+  const categoryName = (slug?: string) =>
+    activeCategories.find((c) => c.slug === slug)?.name ?? slug;
+
   const queryString = useMemo(() => {
-    const params = new URLSearchParams();
-    if (qParam) params.set("q", qParam);
-    if (sortParam) params.set("sort", sortParam);
+      const params = new URLSearchParams();
+      if (qParam) params.set("q", qParam);
+      if (sortParam) params.set("sort", sortParam);
     Object.entries(filtersFromUrl).forEach(([k, v]) => {
       if (v) params.set(k, v);
     });
-    params.set("limit", "40");
+    params.set("limit", "24");
     return params.toString();
   }, [qParam, sortParam, filtersFromUrl]);
 
-  const { data, isLoading, error, isFetching } = useQuery({
+  const {
+    data,
+    isLoading,
+    error,
+    isFetching,
+    isFetchingNextPage,
+    hasNextPage,
+    fetchNextPage,
+  } = useInfiniteQuery({
     queryKey: ["search", queryString],
-    queryFn: () =>
-      apiFetchWithMeta<ProductCardItem[]>(`/search?${queryString}`, {
+    queryFn: ({ pageParam }) => {
+      const qs = pageParam
+        ? `${queryString}&cursor=${encodeURIComponent(pageParam)}`
+        : queryString;
+      return apiFetchWithMeta<ProductCardItem[]>(`/search?${qs}`, {
         skipAuth: true,
-      }),
+      });
+    },
+    initialPageParam: undefined as string | undefined,
+    getNextPageParam: (last) => last.meta?.nextCursor ?? undefined,
+    placeholderData: (prev) => prev,
   });
 
-  const activeFilterCount = Object.values(filtersFromUrl).filter(Boolean).length;
+  const items = useMemo(
+    () => data?.pages.flatMap((p) => p.data) ?? [],
+    [data],
+  );
+  const meta = data?.pages[0]?.meta;
+  const facets = meta?.facets as SearchFacets | undefined;
+  const resultCount = meta?.resultCount;
+
+  const activeFilterCount = Object.values(filtersFromUrl).filter(
+    Boolean,
+  ).length;
+  const hasQueryContext = Boolean(qParam) || activeFilterCount > 0;
+
+  const showInitialSkeleton = isLoading && !data;
   const noResults =
     !isLoading &&
-    !isFetching &&
     !error &&
-    (data?.data?.length ?? 0) === 0 &&
-    (Boolean(qParam) || activeFilterCount > 0);
+    items.length === 0 &&
+    (hasQueryContext || resultCount === 0);
 
   function pushParams(next: {
     q?: string;
@@ -102,41 +196,116 @@ function SearchInner() {
     filters?: FilterState;
   }) {
     const params = new URLSearchParams();
-    const nextQ = next.q ?? qParam;
+    const nextQ = (next.q !== undefined ? next.q : qParam).trim();
     const nextSort = next.sort ?? sortParam;
     const nextFilters = next.filters ?? filtersFromUrl;
-    if (nextQ.trim()) params.set("q", nextQ.trim());
-    if (nextSort) params.set("sort", nextSort);
+
+    if (nextQ) params.set("q", nextQ);
+    // Drop default sorts from the URL to keep links clean
+    if (nextSort === "relevance" && nextQ) {
+      // keep for clarity when searching
+      params.set("sort", nextSort);
+    } else if (nextSort === "newest" && !nextQ) {
+      // default browse — omit
+    } else if (nextSort) {
+      params.set("sort", nextSort);
+    }
+
     Object.entries(nextFilters).forEach(([k, v]) => {
-      if (v) params.set(k, v);
+      if (v) params.set(k, String(v));
     });
-    router.push(`/search?${params.toString()}`);
+    const qs = params.toString();
+    router.push(qs ? `/search?${qs}` : "/search");
   }
 
   function onSubmit(e: FormEvent) {
     e.preventDefault();
-    if (q.trim()) trackRecentSearch(q.trim());
-    pushParams({ q });
+    const term = q.trim();
+    if (term) trackRecentSearch(term);
+    // New text search → relevance rank
+    pushParams({
+      q: term,
+      sort: term ? "relevance" : "newest",
+    });
   }
 
-  const trending = ["90s Denim", "Silk Scarves", "Tailored", "Linen", "Bags"];
+  function clearAll() {
+    setQ("");
+    pushParams({ q: "", sort: "newest", filters: {} });
+  }
+
+  const filterChips = useMemo(() => {
+    const chips: Array<{ key: keyof FilterState; label: string }> = [];
+    if (filtersFromUrl.category) {
+      chips.push({
+        key: "category",
+        label: categoryName(filtersFromUrl.category) ?? filtersFromUrl.category,
+      });
+    }
+    if (filtersFromUrl.condition) {
+      chips.push({
+        key: "condition",
+        label: conditionLabel(filtersFromUrl.condition),
+      });
+    }
+    if (filtersFromUrl.size) {
+      chips.push({ key: "size", label: `Size ${filtersFromUrl.size}` });
+    }
+    if (filtersFromUrl.brand) {
+      chips.push({ key: "brand", label: filtersFromUrl.brand });
+    }
+    if (filtersFromUrl.minPrice || filtersFromUrl.maxPrice) {
+      const min = filtersFromUrl.minPrice ?? "0";
+      const max = filtersFromUrl.maxPrice ?? "∞";
+      chips.push({
+        key: filtersFromUrl.minPrice ? "minPrice" : "maxPrice",
+        label: `AED ${min}–${max}`,
+      });
+    }
+    return chips;
+  }, [filtersFromUrl, activeCategories]);
+
+  const trending =
+    homeFeed?.trendingTags?.length ? homeFeed.trendingTags : FALLBACK_TRENDING;
 
   return (
     <div className="flex flex-col gap-5">
-      <h1 className="text-2xl font-semibold">Search</h1>
+      <div className="flex items-end justify-between gap-3">
+        <h1 className="text-2xl font-semibold">Explore</h1>
+        {typeof resultCount === "number" && !showInitialSkeleton ? (
+          <span className="text-sm text-muted tabular-nums">
+            {resultCount} {resultCount === 1 ? "result" : "results"}
+          </span>
+        ) : null}
+      </div>
 
       <form onSubmit={onSubmit} className="flex gap-2">
         <div className="relative flex-1">
           <SearchIcon className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
           <input
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Brand, style, keyword…"
-            className="h-12 w-full rounded-pill border border-card-border bg-surface pl-10 pr-3 text-sm outline-none focus:border-primary"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Brand, style, keyword…"
+            className="h-12 w-full rounded-pill border border-card-border bg-surface pl-10 pr-10 text-sm outline-none focus:border-primary"
+            enterKeyHint="search"
+            autoComplete="off"
           />
+          {q ? (
+            <button
+              type="button"
+              aria-label="Clear search"
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-full p-1 text-muted hover:bg-accent-soft hover:text-text"
+              onClick={() => {
+                setQ("");
+                if (qParam) pushParams({ q: "", sort: "newest" });
+              }}
+            >
+              <X className="h-4 w-4" />
+            </button>
+          ) : null}
         </div>
         <Button type="submit" className="shrink-0 px-5">
-          Go
+          Search
         </Button>
       </form>
 
@@ -148,7 +317,7 @@ function SearchInner() {
                 <h2 className="text-sm font-semibold text-muted">Recent</h2>
                 <button
                   type="button"
-                  className="text-xs text-muted underline"
+                  className="min-h-[44px] text-xs text-muted underline"
                   onClick={() => {
                     clearRecentSearches();
                     setRecent([]);
@@ -164,9 +333,10 @@ function SearchInner() {
                     type="button"
                     onClick={() => {
                       setQ(tag);
-                      pushParams({ q: tag });
+                      trackRecentSearch(tag);
+                      pushParams({ q: tag, sort: "relevance" });
                     }}
-                    className="rounded-pill border border-card-border bg-surface px-3 py-2 text-sm font-medium"
+                    className="min-h-[44px] rounded-pill border border-card-border bg-surface px-3 py-2 text-sm font-medium"
                   >
                     {tag}
                   </button>
@@ -184,9 +354,9 @@ function SearchInner() {
                   onClick={() => {
                     setQ(tag);
                     trackRecentSearch(tag);
-                    pushParams({ q: tag });
+                    pushParams({ q: tag, sort: "relevance" });
                   }}
-                  className="rounded-pill bg-accent-soft px-3 py-2 text-sm font-medium text-primary"
+                  className="min-h-[44px] rounded-pill bg-accent-soft px-3 py-2 text-sm font-medium text-primary"
                 >
                   {tag}
                 </button>
@@ -212,49 +382,62 @@ function SearchInner() {
             </span>
           ) : null}
         </Button>
-        <div className="min-w-[140px] flex-1 sm:flex-none">
+        <div className="min-w-[150px] flex-1 sm:flex-none">
           <Select
             value={sortParam}
             onChange={(e) => pushParams({ sort: e.target.value })}
             options={[
               { value: "relevance", label: "Relevance" },
               { value: "newest", label: "Newest" },
-              { value: "price_asc", label: "Price ↑" },
-              { value: "price_desc", label: "Price ↓" },
+              { value: "price_asc", label: "Price: low to high" },
+              { value: "price_desc", label: "Price: high to low" },
             ]}
           />
         </div>
-        {data?.meta?.resultCount != null ? (
-          <span className="ml-auto text-sm text-muted">
-            {data.meta.resultCount} results
-          </span>
+        {hasQueryContext ? (
+          <button
+            type="button"
+            onClick={clearAll}
+            className="ml-auto min-h-[44px] text-sm font-medium text-primary underline"
+          >
+            Clear all
+          </button>
         ) : null}
       </div>
 
-      {activeFilterCount > 0 ? (
+      {filterChips.length > 0 ? (
         <div className="flex flex-wrap gap-2">
-          {Object.entries(filtersFromUrl).map(([key, val]) =>
-            val ? (
-              <button
-                key={key}
-                type="button"
-                className={cn(
-                  "rounded-pill bg-accent-soft px-3 py-1.5 text-xs font-medium text-primary",
-                )}
-                onClick={() =>
+          {filterChips.map((chip) => (
+            <button
+              key={chip.key}
+              type="button"
+              className={cn(
+                "inline-flex min-h-[44px] items-center gap-1 rounded-pill bg-accent-soft px-3 py-1.5 text-xs font-medium text-primary",
+              )}
+              onClick={() => {
+                if (chip.key === "minPrice" || chip.key === "maxPrice") {
                   pushParams({
-                    filters: { ...filtersFromUrl, [key]: undefined },
-                  })
+                    filters: {
+                      ...filtersFromUrl,
+                      minPrice: undefined,
+                      maxPrice: undefined,
+                    },
+                  });
+                  return;
                 }
-              >
-                {key}: {val} ×
-              </button>
-            ) : null,
-          )}
+                pushParams({
+                  filters: { ...filtersFromUrl, [chip.key]: undefined },
+                });
+              }}
+            >
+              {chip.label}
+              <X className="h-3 w-3" aria-hidden />
+            </button>
+          ))}
         </div>
       ) : null}
 
-      {isLoading || isFetching ? (
+      {showInitialSkeleton ? (
         <div className="grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4">
           {Array.from({ length: 8 }).map((_, i) => (
             <ProductCardSkeleton key={i} />
@@ -272,28 +455,41 @@ function SearchInner() {
             <p className="font-semibold">No matches</p>
             <p className="mt-1 text-sm text-muted">
               {qParam
-                ? `Nothing for “${qParam}”. Clear filters or try another term.`
-                : "Try clearing filters."}
+                ? `Nothing for “${qParam}”. Try another term or clear filters.`
+                : "No listings match these filters."}
             </p>
-            <Button
-              className="mt-4"
-              variant="outline"
-              onClick={() => {
-                setQ("");
-                pushParams({ q: "", filters: {} });
-              }}
-            >
-              Clear filters
+            <Button className="mt-4" variant="outline" onClick={clearAll}>
+              Clear search
             </Button>
           </div>
           <TrendingRail title="Trending instead" />
         </div>
       ) : (
+        <>
+          <div
+            className={cn(
+              "transition-opacity",
+              isFetching && !isFetchingNextPage ? "opacity-70" : "opacity-100",
+            )}
+          >
         <ProductGrid
-          items={data?.data ?? []}
-          emptyTitle="No matches"
-          emptyMessage="Try a search or open filters to browse."
-        />
+              items={items}
+              emptyTitle="No matches"
+              emptyMessage="Try a search or open filters to browse."
+            />
+          </div>
+          {hasNextPage ? (
+            <div className="flex justify-center pt-2">
+              <Button
+                variant="outline"
+                disabled={isFetchingNextPage}
+                onClick={() => void fetchNextPage()}
+              >
+                {isFetchingNextPage ? "Loading…" : "Load more"}
+              </Button>
+            </div>
+          ) : null}
+        </>
       )}
 
       <FilterDrawer
@@ -301,18 +497,12 @@ function SearchInner() {
         onClose={() => setDrawerOpen(false)}
         value={filtersFromUrl}
         onApply={(filters) => pushParams({ filters })}
-        categories={(categories ?? []).filter((c) => c.slug !== "kids")}
-        facets={data?.meta?.facets as FilterDrawerFacets | undefined}
+        categories={activeCategories}
+        facets={facets}
       />
     </div>
   );
 }
-
-type FilterDrawerFacets = {
-  brand?: Array<{ value: string; count: number }>;
-  size?: Array<{ value: string; count: number }>;
-  condition?: Array<{ value: string; count: number }>;
-};
 
 export default function SearchPage() {
   return (

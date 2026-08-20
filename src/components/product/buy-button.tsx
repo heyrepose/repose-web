@@ -3,13 +3,16 @@
 import { useRouter } from "next/navigation";
 import { useRequireAuth } from "@/lib/hooks";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 export function BuyButton({
   listingId,
   priceAed,
+  className,
 }: {
   listingId: string;
   priceAed: string;
+  className?: string;
 }) {
   const requireAuth = useRequireAuth();
   const router = useRouter();
@@ -17,7 +20,8 @@ export function BuyButton({
   return (
     <Button
       size="lg"
-      className="w-full"
+      variant="secondary"
+      className={cn("w-full", className)}
       onClick={() => {
         if (!requireAuth()) return;
         sessionStorage.setItem(

@@ -43,12 +43,32 @@ export function CategoryFilters({ slug }: { slug: string }) {
   });
 
   const { data: searchMeta } = useQuery({
-    queryKey: ["category-facets", slug],
-    queryFn: () =>
-      apiFetchWithMeta<unknown[]>(
-        `/search?category=${encodeURIComponent(slug)}&limit=1`,
-        { skipAuth: true },
-      ),
+    queryKey: [
+      "category-facets",
+      slug,
+      filtersFromUrl.brand,
+      filtersFromUrl.size,
+      filtersFromUrl.condition,
+      filtersFromUrl.minPrice,
+      filtersFromUrl.maxPrice,
+    ],
+    queryFn: () => {
+      const params = new URLSearchParams({
+        category: slug,
+        limit: "1",
+      });
+      if (filtersFromUrl.brand) params.set("brand", filtersFromUrl.brand);
+      if (filtersFromUrl.size) params.set("size", filtersFromUrl.size);
+      if (filtersFromUrl.condition)
+        params.set("condition", filtersFromUrl.condition);
+      if (filtersFromUrl.minPrice)
+        params.set("minPrice", filtersFromUrl.minPrice);
+      if (filtersFromUrl.maxPrice)
+        params.set("maxPrice", filtersFromUrl.maxPrice);
+      return apiFetchWithMeta<unknown[]>(`/search?${params.toString()}`, {
+        skipAuth: true,
+      });
+    },
   });
 
   function push(next: { sort?: string; filters?: FilterState }) {
@@ -108,6 +128,7 @@ export function CategoryFilters({ slug }: { slug: string }) {
         value={filtersFromUrl}
         onApply={(filters) => push({ filters: { ...filters, category: slug } })}
         categories={(categories ?? []).filter((c) => c.slug !== "kids")}
+        lockCategory
         facets={
           searchMeta?.meta?.facets as
             | {

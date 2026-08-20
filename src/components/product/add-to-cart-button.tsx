@@ -6,8 +6,15 @@ import { apiFetch } from "@/lib/api-client";
 import { useRequireAuth } from "@/lib/hooks";
 import { useToast } from "@/components/ui/toast";
 import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
-export function AddToCartButton({ listingId }: { listingId: string }) {
+export function AddToCartButton({
+  listingId,
+  prominent = false,
+}: {
+  listingId: string;
+  prominent?: boolean;
+}) {
   const requireAuth = useRequireAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -29,16 +36,19 @@ export function AddToCartButton({ listingId }: { listingId: string }) {
 
   return (
     <Button
-      variant="outline"
-      size="lg"
-      className="w-full"
+      variant="primary"
+      size={prominent ? "lg" : "default"}
+      className={cn(
+        "w-full uppercase tracking-[0.12em]",
+        prominent && "min-h-[56px] text-[13px] font-semibold",
+      )}
       disabled={mutation.isPending}
       onClick={() => {
         if (!requireAuth()) return;
         mutation.mutate();
       }}
     >
-      <ShoppingBag className="h-4 w-4" />
+      <ShoppingBag className="h-4 w-4" strokeWidth={2} />
       {mutation.isPending ? "Adding…" : "Add to bag"}
     </Button>
   );

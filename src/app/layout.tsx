@@ -10,6 +10,9 @@ export const metadata: Metadata = {
     template: "%s · Repose",
   },
   description: "Pre-loved fashion marketplace in the UAE.",
+  icons: {
+    icon: "/favicon.ico",
+  },
 };
 
 export default function RootLayout({

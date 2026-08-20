@@ -1,10 +1,11 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { ChevronRight, Ruler, Sparkles, Tag } from "lucide-react";
 import type { ListingCondition } from "@repose/api-types";
-import { ConditionBadge } from "@/components/product/condition-badge";
+import { CONDITION_BADGE, type ListingConditionKey } from "@repose/ui";
 import { PriceTag } from "@/components/product/price-tag";
 import { ImageGallery } from "@/components/product/image-gallery";
-import { RareFindBadge, SoldOverlay } from "@/components/product/badges";
+import { RareFindBadge } from "@/components/product/badges";
 import { TrackListingView } from "@/components/product/track-listing-view";
 import {
   SimilarListingsRail,
@@ -12,6 +13,7 @@ import {
 } from "@/components/product/recommendation-rails";
 import { RecentlyViewedRail } from "@/components/product/recently-viewed-rail";
 import { ListingCtaBlock } from "@/components/product/listing-cta-block";
+import { ListingDetailChrome } from "@/components/product/listing-detail-chrome";
 import { serverFetch } from "@/lib/api-client";
 
 type ListingDetail = {
@@ -56,6 +58,13 @@ export async function generateMetadata({
   };
 }
 
+function conditionLabel(condition: string): string {
+  return (
+    CONDITION_BADGE[condition as ListingConditionKey]?.label ??
+    condition.replace(/_/g, " ")
+  );
+}
+
 export default async function ListingPage({
   params,
 }: {
@@ -81,6 +90,11 @@ export default async function ListingPage({
 
   const sold = listing.status === "SOLD";
   const reviewCount = listing.seller.reviewCount ?? listing.seller.ratingCount;
+  const subtitle =
+    listing.brand ??
+    listing.category?.name ??
+    (listing.size ? `Size ${listing.size}` : null);
+
   const jsonLd = {
     "@context": "https://schema.org",
     "@type": "Product",
@@ -101,6 +115,27 @@ export default async function ListingPage({
     },
   };
 
+  const detailTiles = [
+    {
+      key: "condition",
+      label: "Condition",
+      value: conditionLabel(listing.condition),
+      icon: Sparkles,
+    },
+    {
+      key: "size",
+      label: "Size",
+      value: listing.size ?? "—",
+      icon: Ruler,
+    },
+    {
+      key: "brand",
+      label: "Brand",
+      value: listing.brand ?? "—",
+      icon: Tag,
+    },
+  ];
+
   return (
     <>
       <TrackListingView
@@ -116,115 +151,182 @@ export default async function ListingPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      <div className="grid gap-8 lg:grid-cols-2">
-        <div className="relative">
-          <ImageGallery images={listing.images ?? []} alt={listing.title} />
-          {sold ? (
-            <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-card">
-              <SoldOverlay />
-            </div>
-          ) : null}
-        </div>
 
-        <div className="flex flex-col gap-5 lg:pb-28">
-          <div>
-            <div className="mb-2 flex flex-wrap items-center gap-2">
-              {listing.isFeatured ? <RareFindBadge /> : null}
-              {listing.category ? (
-                <Link
-                  href={`/category/${listing.category.slug}`}
-                  className="text-xs font-medium uppercase tracking-wide text-muted"
-                >
-                  {listing.category.name}
-                </Link>
-              ) : null}
-            </div>
-            {listing.brand ? (
-              <p className="text-sm font-medium text-muted">{listing.brand}</p>
-            ) : null}
-            <h1 className="mt-1 text-2xl font-semibold leading-tight md:text-3xl">
-              {listing.title}
-            </h1>
-            <div className="mt-3 flex flex-wrap items-center gap-2">
-              <PriceTag priceAed={listing.priceAed} className="text-2xl" />
-              <ConditionBadge condition={listing.condition} />
-              {listing.size ? (
-                <span className="rounded-pill border border-card-border bg-surface px-3 py-1 text-sm text-muted">
-                  Size {listing.size}
-                </span>
-              ) : null}
-            </div>
-          </div>
+      {/*
+        Phone/tablet: single column (chrome → gallery → details → sticky CTA)
+        Desktop (lg+): two columns — gallery left, details + buttons right
+      */}
+      <article className="mx-auto w-full max-w-lg pb-52 md:max-w-xl md:pb-44 lg:max-w-6xl lg:pb-12">
+        {/* Mobile chrome only — desktop chrome sits above the right column */}
+        <ListingDetailChrome
+          listingId={listing.id}
+          initiallySaved={Boolean(listing.isSavedByCurrentUser)}
+          className="mb-3 lg:hidden"
+        />
 
-          {listing.description ? (
-            <p className="whitespace-pre-wrap text-sm leading-relaxed text-text/90">
-              {listing.description}
-            </p>
-          ) : null}
-
-          <Link
-            href={`/seller/${listing.seller.username}`}
-            className="flex items-center gap-3 rounded-card border border-card-border bg-surface p-3 shadow-card"
-          >
-            <div className="relative h-12 w-12 overflow-hidden rounded-full bg-accent-soft">
-              {listing.seller.avatarUrl ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={listing.seller.avatarUrl}
-                  alt=""
-                  className="h-full w-full object-cover"
-                />
-              ) : (
-                <span className="flex h-full w-full items-center justify-center text-sm font-semibold text-primary">
-                  {listing.seller.username.slice(0, 1).toUpperCase()}
-                </span>
-              )}
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-primary">
-                @{listing.seller.username}
-              </p>
-              {listing.seller.ratingAvg != null ? (
-                <p className="text-xs text-muted">
-                  {Number(listing.seller.ratingAvg).toFixed(1)}★
-                  {reviewCount ? ` · ${reviewCount} reviews` : ""} — view
-                  closet
-                </p>
-              ) : (
-                <p className="text-xs text-muted">View closet</p>
-              )}
-            </div>
-          </Link>
-
-          <div className="hidden flex-col gap-3 lg:flex">
-            <ListingCtaBlock
-              listingId={listing.id}
-              sellerId={listing.seller.id}
-              status={listing.status}
-              priceAed={listing.priceAed}
-              initiallySaved={Boolean(listing.isSavedByCurrentUser)}
+        <div className="lg:grid lg:grid-cols-2 lg:items-start lg:gap-10 xl:gap-12">
+          {/* Left: images */}
+          <div className="lg:sticky lg:top-20">
+            <ImageGallery
+              images={listing.images ?? []}
+              alt={listing.title}
+              sold={sold}
             />
           </div>
+
+          {/* Right: details + CTAs */}
+          <div className="flex min-w-0 flex-col">
+            <ListingDetailChrome
+              listingId={listing.id}
+              initiallySaved={Boolean(listing.isSavedByCurrentUser)}
+              className="mb-4 hidden lg:flex"
+            />
+
+            {/* Title, then brand, then price — full-width stack so long titles don't push price */}
+            <header className="mt-6 flex flex-col gap-3 lg:mt-0">
+              <div className="flex flex-wrap items-center gap-2">
+                {listing.isFeatured ? <RareFindBadge /> : null}
+                {listing.category ? (
+                  <Link
+                    href={`/category/${listing.category.slug}`}
+                    className="text-[11px] font-semibold uppercase tracking-[0.16em] text-primary"
+                  >
+                    {listing.category.name}
+                  </Link>
+                ) : null}
+              </div>
+
+              <h1 className="text-[1.65rem] font-semibold leading-[1.2] tracking-tight text-text md:text-3xl">
+                {listing.title}
+              </h1>
+
+              {subtitle ? (
+                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-primary/80">
+                  {listing.brand ? listing.brand : listing.category?.name}
+                  {listing.brand && listing.size ? " · " : null}
+                  {listing.brand && listing.size
+                    ? `Size ${listing.size}`
+                    : null}
+                  {!listing.brand && listing.size
+                    ? `Size ${listing.size}`
+                    : null}
+                </p>
+              ) : null}
+
+              <PriceTag
+                priceAed={listing.priceAed}
+                className="text-[1.75rem] font-semibold tabular-nums leading-none text-text md:text-[2rem]"
+              />
+            </header>
+
+            {/* Description */}
+            <section className="mt-5 border-b border-card-border pb-5">
+              <p className="text-sm leading-relaxed text-text/85">
+                {listing.description?.trim()
+                  ? listing.description
+                  : "No description from the seller. Message them if you need more detail on fabric, fit, or wear."}
+              </p>
+            </section>
+
+            {/* Details grid */}
+            <section className="border-b border-card-border py-5">
+              <h2 className="mb-4 text-xs font-bold uppercase tracking-[0.18em] text-text">
+                Details
+              </h2>
+              <div className="grid grid-cols-3 gap-2 sm:gap-4">
+                {detailTiles.map(({ key, label, value, icon: Icon }) => (
+                  <div
+                    key={key}
+                    className="flex flex-col items-center gap-2 px-1 text-center"
+                  >
+                    <span className="flex h-11 w-11 items-center justify-center rounded-full bg-accent-soft text-primary">
+                      <Icon className="h-5 w-5" strokeWidth={1.6} />
+                    </span>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-[0.12em] text-text">
+                        {label}
+                      </p>
+                      <p className="mt-0.5 text-xs leading-snug text-muted">
+                        {value}
+                      </p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+
+            {/* Seller */}
+            <section className="py-5">
+              <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.18em] text-text">
+                Seller
+              </h2>
+              <Link
+                href={`/seller/${listing.seller.username}`}
+                className="flex items-center gap-3 rounded-[20px] bg-surface p-3 shadow-card ring-1 ring-card-border transition-colors hover:bg-accent-soft/40"
+              >
+                <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-full bg-accent-soft">
+                  {listing.seller.avatarUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={listing.seller.avatarUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <span className="flex h-full w-full items-center justify-center text-sm font-semibold text-primary">
+                      {listing.seller.username.slice(0, 1).toUpperCase()}
+                    </span>
+                  )}
+                </div>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm font-semibold text-text">
+                    @{listing.seller.username}
+                  </p>
+                  {listing.seller.ratingAvg != null ? (
+                    <p className="text-xs text-muted">
+                      {Number(listing.seller.ratingAvg).toFixed(1)}★
+                      {reviewCount ? ` · ${reviewCount} reviews` : ""}
+                    </p>
+                  ) : (
+                    <p className="text-xs text-muted">View closet</p>
+                  )}
+                </div>
+                <ChevronRight className="h-5 w-5 shrink-0 text-muted" />
+              </Link>
+            </section>
+
+            {/* Desktop CTAs — inline under details */}
+            <div className="mt-1 hidden lg:block">
+              <ListingCtaBlock
+                listingId={listing.id}
+                sellerId={listing.seller.id}
+                status={listing.status}
+                priceAed={listing.priceAed}
+              />
+            </div>
+          </div>
         </div>
-      </div>
 
-      <SimilarListingsRail listingId={listing.id} />
-      <SellerListingsRail
-        sellerId={listing.seller.id}
-        excludeId={listing.id}
-      />
-      <RecentlyViewedRail excludeId={listing.id} />
+        {/* Rails full width below the grid */}
+        <div className="mt-10 space-y-2 border-t border-card-border pt-8 lg:mt-14">
+          <SimilarListingsRail listingId={listing.id} />
+          <SellerListingsRail
+            sellerId={listing.seller.id}
+            excludeId={listing.id}
+          />
+          <RecentlyViewedRail excludeId={listing.id} />
+        </div>
+      </article>
 
-      {/* Sticky mobile CTA */}
-      <div className="fixed inset-x-0 bottom-[72px] z-30 border-t border-card-border bg-surface/95 px-screen py-3 backdrop-blur lg:hidden">
-        <div className="mx-auto flex max-w-6xl flex-col gap-2">
+      {/* Sticky CTA — phone & tablet only */}
+      <div className="fixed inset-x-0 bottom-[calc(72px+env(safe-area-inset-bottom))] z-30 border-t border-card-border bg-surface/95 px-screen py-3 backdrop-blur md:bottom-[env(safe-area-inset-bottom)] lg:hidden">
+        <div className="mx-auto w-full max-w-lg md:max-w-xl">
           <ListingCtaBlock
             listingId={listing.id}
             sellerId={listing.seller.id}
             status={listing.status}
             priceAed={listing.priceAed}
-            initiallySaved={Boolean(listing.isSavedByCurrentUser)}
-            compact
+            stickyBar
           />
         </div>
       </div>

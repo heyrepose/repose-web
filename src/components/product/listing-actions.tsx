@@ -15,11 +15,7 @@ type Props = {
   initiallySaved: boolean;
 };
 
-export function ListingActions({
-  listingId,
-  sellerId,
-  initiallySaved,
-}: Props) {
+export function ListingActions({ listingId, sellerId, initiallySaved }: Props) {
   const requireAuth = useRequireAuth();
   const router = useRouter();
   const { toast } = useToast();
@@ -38,8 +34,7 @@ export function ListingActions({
       setSaved(next);
       toast(next ? "Saved to wishlist" : "Removed from saved", "success");
     },
-    onError: (e) =>
-      toast("Could not update saved", "error", e),
+    onError: (e) => toast("Could not update saved", "error", e),
   });
 
   const messageMutation = useMutation({
@@ -54,8 +49,7 @@ export function ListingActions({
       toast("Opening chat…", "default");
       router.push(`/messages/${conv.id}`);
     },
-    onError: (e) =>
-      toast("Could not start chat", "error", e),
+    onError: (e) => toast("Could not start chat", "error", e),
   });
 
   return (

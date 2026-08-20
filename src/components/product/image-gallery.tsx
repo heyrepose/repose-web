@@ -9,9 +9,10 @@ type Props = {
   images: Array<{ url: string; sortOrder?: number }>;
   alt: string;
   className?: string;
+  sold?: boolean;
 };
 
-export function ImageGallery({ images, alt, className }: Props) {
+export function ImageGallery({ images, alt, className, sold }: Props) {
   const sorted = [...images].sort(
     (a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0),
   );
@@ -19,6 +20,7 @@ export function ImageGallery({ images, alt, className }: Props) {
   const [viewerOpen, setViewerOpen] = useState(false);
 
   const current = sorted[index]?.url;
+  const multi = sorted.length > 1;
 
   const go = useCallback(
     (dir: -1 | 1) => {
@@ -47,7 +49,7 @@ export function ImageGallery({ images, alt, className }: Props) {
     return (
       <div
         className={cn(
-          "flex aspect-[4/5] items-center justify-center rounded-card bg-accent-soft text-muted",
+          "flex aspect-[4/5] items-center justify-center rounded-[28px] bg-accent-soft text-sm text-muted shadow-card",
           className,
         )}
       >
@@ -58,65 +60,79 @@ export function ImageGallery({ images, alt, className }: Props) {
 
   return (
     <>
-      <div className={cn("flex flex-col gap-3", className)}>
-        <button
-          type="button"
-          className="relative aspect-[4/5] w-full overflow-hidden rounded-card border border-card-border bg-accent-soft shadow-card"
-          onClick={() => setViewerOpen(true)}
-          aria-label="Open image viewer"
-        >
-          <Image
-            src={current}
-            alt={alt}
-            fill
-            priority
-            className="object-cover"
-            sizes="(max-width: 1024px) 100vw, 50vw"
-          />
-          {sorted.length > 1 ? (
-            <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5">
-              {sorted.map((_, i) => (
-                <span
-                  key={i}
-                  className={cn(
-                    "h-1.5 w-1.5 rounded-full",
-                    i === index ? "bg-surface" : "bg-surface/50",
-                  )}
-                />
-              ))}
+      <div className={cn("relative", className)}>
+        <div className="relative aspect-[4/5] w-full overflow-hidden rounded-[28px] bg-accent-soft shadow-[0_8px_28px_rgba(0,0,0,0.08)]">
+          <button
+            type="button"
+            className="absolute inset-0 z-0"
+            onClick={() => setViewerOpen(true)}
+            aria-label="Open full image"
+          >
+            <Image
+              src={current}
+              alt={alt}
+              fill
+              priority
+              className="object-cover"
+              sizes="(max-width: 768px) 100vw, 520px"
+            />
+          </button>
+
+          {sold ? (
+            <div className="pointer-events-none absolute inset-0 z-[1] flex items-center justify-center bg-text/40">
+              <span className="rounded-pill bg-surface px-5 py-2 text-sm font-bold tracking-[0.2em] text-text">
+                SOLD
+              </span>
             </div>
           ) : null}
-        </button>
 
-        {sorted.length > 1 ? (
-          <div className="flex gap-2 overflow-x-auto pb-1">
-            {sorted.map((img, i) => (
+          {multi ? (
+            <>
               <button
-                key={`${img.url}-${i}`}
                 type="button"
-                onClick={() => setIndex(i)}
-                className={cn(
-                  "relative h-16 w-14 shrink-0 overflow-hidden rounded-card border-2",
-                  i === index ? "border-primary" : "border-transparent",
-                )}
+                aria-label="Previous photo"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  go(-1);
+                }}
+                className="absolute left-3 top-1/2 z-[2] flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-surface/95 text-text shadow-card"
               >
-                <Image
-                  src={img.url}
-                  alt=""
-                  fill
-                  className="object-cover"
-                  sizes="56px"
-                />
+                <ChevronLeft className="h-5 w-5" strokeWidth={2} />
               </button>
-            ))}
-          </div>
-        ) : null}
+              <button
+                type="button"
+                aria-label="Next photo"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  go(1);
+                }}
+                className="absolute right-3 top-1/2 z-[2] flex h-11 w-11 -translate-y-1/2 items-center justify-center rounded-full bg-surface/95 text-text shadow-card"
+              >
+                <ChevronRight className="h-5 w-5" strokeWidth={2} />
+              </button>
+
+              <div className="pointer-events-none absolute bottom-4 left-1/2 z-[2] flex -translate-x-1/2 gap-2">
+                {sorted.map((_, i) => (
+                  <span
+                    key={i}
+                    className={cn(
+                      "h-2 w-2 rounded-full transition-colors",
+                      i === index
+                        ? "bg-primary"
+                        : "bg-surface/90 ring-1 ring-text/10",
+                    )}
+                  />
+                ))}
+              </div>
+            </>
+          ) : null}
+        </div>
       </div>
 
       {viewerOpen ? (
         <div className="fixed inset-0 z-50 flex flex-col bg-text animate-fade-in">
           <div className="flex items-center justify-between px-4 py-3 text-surface">
-            <span className="text-sm">
+            <span className="text-sm tabular-nums">
               {index + 1} / {sorted.length}
             </span>
             <button
@@ -129,7 +145,7 @@ export function ImageGallery({ images, alt, className }: Props) {
             </button>
           </div>
           <div className="relative flex flex-1 items-center justify-center px-4">
-            {sorted.length > 1 ? (
+            {multi ? (
               <button
                 type="button"
                 aria-label="Previous"
@@ -148,7 +164,7 @@ export function ImageGallery({ images, alt, className }: Props) {
                 sizes="100vw"
               />
             </div>
-            {sorted.length > 1 ? (
+            {multi ? (
               <button
                 type="button"
                 aria-label="Next"

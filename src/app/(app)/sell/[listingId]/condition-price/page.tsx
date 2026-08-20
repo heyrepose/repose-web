@@ -4,12 +4,10 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import type { ListingCondition } from "@repose/api-types";
 import { CONDITION_BADGE } from "@repose/ui";
 import { useQuery } from "@tanstack/react-query";
-import Link from "next/link";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
-import { Check } from "lucide-react";
 import { apiFetch, getErrorToastMessage } from "@/lib/api-client";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
@@ -42,8 +40,8 @@ type ListingDetail = {
 
 export default function SellConditionPricePage() {
   const { listingId } = useParams<{ listingId: string }>();
+  const router = useRouter();
   const { toast } = useToast();
-  const [publishedId, setPublishedId] = useState<string | null>(null);
   const [formError, setFormError] = useState<string | null>(null);
 
   const { data: listing, isLoading } = useQuery({
@@ -69,9 +67,6 @@ export default function SellConditionPricePage() {
         condition: listing.condition ?? "VERY_GOOD",
         priceAed: listing.priceAed ?? "",
       });
-      if (listing.status === "ACTIVE") {
-        setPublishedId(listing.id);
-      }
     }
   }, [listing, reset]);
 
@@ -80,50 +75,20 @@ export default function SellConditionPricePage() {
   async function onSubmit(values: FormValues) {
     setFormError(null);
     try {
-      if (listing?.status === "ACTIVE") {
-        await apiFetch(`/listings/${listingId}`, {
-          method: "PATCH",
-          body: JSON.stringify({
-            condition: values.condition,
-            priceAed: values.priceAed,
-          }),
-        });
-        setPublishedId(listingId);
-        toast("Listing updated", "success");
-        return;
-      }
-
-      const data = await apiFetch<{ id: string; status: string }>(
-        `/listings/${listingId}/publish`,
-        {
-          method: "PATCH",
-          body: JSON.stringify({
-            condition: values.condition,
-            priceAed: values.priceAed,
-          }),
-        },
-      );
-      setPublishedId(data.id);
-      toast("Listing published", "success");
+      // Save only — publish happens on the review/checkout step after photos.
+      await apiFetch(`/listings/${listingId}`, {
+        method: "PATCH",
+        body: JSON.stringify({
+          condition: values.condition,
+          priceAed: values.priceAed,
+        }),
+      });
+      router.push(`/sell/${listingId}/photos`);
     } catch (e) {
-      const message = getErrorToastMessage(e, "Could not publish listing.");
+      const message = getErrorToastMessage(e, "Could not save.");
       setFormError(message);
-      toast("Could not publish listing.", "error", e);
+      toast("Could not save condition & price.", "error", e);
     }
-  }
-
-  async function shareListing() {
-    const url = `${window.location.origin}/listing/${publishedId}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({ title: "My Repose listing", url });
-        return;
-      } catch {
-        /* fall through */
-      }
-    }
-    await navigator.clipboard.writeText(url);
-    toast("Link copied", "success");
   }
 
   if (isLoading) {
@@ -134,45 +99,11 @@ export default function SellConditionPricePage() {
     );
   }
 
-  if (publishedId) {
-    return (
-      <div className="mx-auto flex max-w-lg flex-col items-center gap-5 py-8 text-center animate-scale-in">
-        <div className="flex h-16 w-16 items-center justify-center rounded-full bg-accent-soft text-primary">
-          <Check className="h-8 w-8" strokeWidth={2.5} />
-        </div>
-        <div>
-          <h1 className="text-2xl font-semibold">Listing is live</h1>
-          <p className="mt-2 text-sm text-muted">
-            Share your piece — buyers can find it in search and the feed.
-          </p>
-        </div>
-        <div className="flex w-full flex-col gap-3">
-          <Link href={`/listing/${publishedId}`} className="w-full">
-            <Button className="w-full">View listing</Button>
-          </Link>
-          <Link href={`/sell/${listingId}/edit`} className="w-full">
-            <Button variant="outline" className="w-full">
-              Edit listing
-            </Button>
-          </Link>
-          <Button variant="outline" className="w-full" onClick={shareListing}>
-            Share link
-          </Button>
-          <Link href="/sell" className="w-full">
-            <Button variant="ghost" className="w-full">
-              List another item
-            </Button>
-          </Link>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="mx-auto max-w-lg">
       <h1 className="text-2xl font-semibold">Condition & price</h1>
       <p className="mt-1 text-sm text-muted">
-        Last step — then you&apos;re published.
+        Step 3 of 5 — photos and review come next.
       </p>
 
       <form
@@ -226,7 +157,7 @@ export default function SellConditionPricePage() {
 
         <Button type="submit" disabled={isSubmitting} className="w-full">
           {isSubmitting ? <Spinner className="h-4 w-4" /> : null}
-          Publish listing
+          Continue to photos
         </Button>
       </form>
     </div>

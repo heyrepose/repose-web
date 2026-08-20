@@ -29,8 +29,7 @@ export default function CartPage() {
       setRemoveId(null);
       toast("Removed from bag", "success");
     },
-    onError: (e) =>
-      toast("Could not remove item", "error", e),
+    onError: (e) => toast("Could not remove item", "error", e),
   });
 
   const move = useMutation({
@@ -43,8 +42,7 @@ export default function CartPage() {
       queryClient.invalidateQueries({ queryKey: ["saved"] });
       toast("Moved to saved", "success");
     },
-    onError: (e) =>
-      toast("Could not move item", "error", e),
+    onError: (e) => toast("Could not move item", "error", e),
   });
 
   if (isLoading) {
@@ -67,7 +65,8 @@ export default function CartPage() {
         <h1 className="text-2xl font-semibold">Bag</h1>
         {!empty ? (
           <p className="mt-1 text-sm text-muted">
-            {cart.availableCount} available · {cart.itemCount} total
+            {cart.itemCount} {cart.itemCount === 1 ? "piece" : "pieces"} —
+            checkout each item separately (peer-to-peer).
           </p>
         ) : null}
       </header>
@@ -90,29 +89,29 @@ export default function CartPage() {
           <TrendingRail title="Inspired for you" />
         </>
       ) : (
-        <>
-          <div className="flex flex-col gap-6">
-            {cart.groups.map((group) => (
-              <section key={group.seller.id} className="flex flex-col gap-3">
-                <Link
-                  href={
-                    group.seller.username
-                      ? `/seller/${group.seller.username}`
-                      : "#"
-                  }
-                  className="text-sm font-semibold text-primary"
-                >
-                  @{group.seller.username ?? "seller"}
-                </Link>
-                <ul className="flex flex-col gap-2">
-                  {group.items.map((item) => (
-                    <li
-                      key={item.listingId}
-                      className={
-                        "flex gap-3 rounded-card border border-card-border bg-surface p-3 shadow-card " +
-                        (!item.isAvailable ? "opacity-60" : "")
-                      }
-                    >
+        <div className="flex flex-col gap-6">
+          {cart.groups.map((group) => (
+            <section key={group.seller.id} className="flex flex-col gap-3">
+              <Link
+                href={
+                  group.seller.username
+                    ? `/seller/${group.seller.username}`
+                    : "#"
+                }
+                className="text-sm font-semibold text-primary"
+              >
+                @{group.seller.username ?? "seller"}
+              </Link>
+              <ul className="flex flex-col gap-3">
+                {group.items.map((item) => (
+                  <li
+                    key={item.listingId}
+                    className={
+                      "flex flex-col gap-3 rounded-card border border-card-border bg-surface p-3 shadow-card sm:flex-row sm:items-stretch " +
+                      (!item.isAvailable ? "opacity-60" : "")
+                    }
+                  >
+                    <div className="flex min-w-0 flex-1 gap-3">
                       <Link
                         href={`/listing/${item.listingId}`}
                         className="relative h-24 w-20 shrink-0 overflow-hidden rounded-card bg-accent-soft"
@@ -141,11 +140,15 @@ export default function CartPage() {
                           <p className="mt-1 text-xs text-muted">
                             No longer available
                           </p>
-                        ) : null}
-                        <div className="mt-2 flex flex-wrap gap-2">
+                        ) : (
+                          <p className="mt-1 text-xs text-muted">
+                            One of a kind · buy on its own
+                          </p>
+                        )}
+                        <div className="mt-2 flex flex-wrap gap-3">
                           <button
                             type="button"
-                            className="text-xs text-muted underline"
+                            className="min-h-[44px] text-xs text-muted underline"
                             disabled={remove.isPending}
                             onClick={() => setRemoveId(item.listingId)}
                           >
@@ -154,7 +157,7 @@ export default function CartPage() {
                           {item.isAvailable ? (
                             <button
                               type="button"
-                              className="text-xs text-primary underline"
+                              className="min-h-[44px] text-xs text-primary underline"
                               disabled={move.isPending}
                               onClick={() => move.mutate(item.listingId)}
                             >
@@ -163,35 +166,41 @@ export default function CartPage() {
                           ) : null}
                         </div>
                       </div>
-                    </li>
-                  ))}
-                </ul>
-              </section>
-            ))}
-          </div>
+                    </div>
+                    {item.isAvailable ? (
+                      <div className="flex shrink-0 items-end sm:flex-col sm:justify-end">
+                        <Link
+                          href={`/checkout?listingId=${item.listingId}`}
+                          className="inline-flex min-h-[48px] w-full items-center justify-center rounded-pill bg-primary px-5 text-sm font-medium text-surface sm:w-auto"
+                          onClick={() => {
+                            sessionStorage.setItem(
+                              "repose_checkout_listing",
+                              JSON.stringify({
+                                listingId: item.listingId,
+                                priceAed: item.listing.priceAed ?? "0",
+                              }),
+                            );
+                          }}
+                        >
+                          Checkout
+                        </Link>
+                      </div>
+                    ) : (
+                      <Button className="w-full sm:w-auto" disabled>
+                        Unavailable
+                      </Button>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </section>
+          ))}
 
-          <div className="sticky bottom-20 rounded-card border border-card-border bg-surface p-4 shadow-card md:bottom-4">
-            <div className="flex justify-between text-sm">
-              <span className="text-muted">Subtotal</span>
-              <span className="font-bold">{formatAed(cart.subtotalAed)}</span>
-            </div>
-            <p className="mt-1 text-xs text-muted">
-              Unavailable items are excluded from checkout.
-            </p>
-            {cart.availableCount >= 1 ? (
-              <Link
-                href="/checkout?from=cart"
-                className="mt-3 inline-flex w-full min-h-[52px] items-center justify-center rounded-pill bg-primary px-6 text-sm font-medium text-surface"
-              >
-                Checkout
-              </Link>
-            ) : (
-              <Button className="mt-3 w-full" disabled>
-                Nothing available to checkout
-              </Button>
-            )}
-          </div>
-        </>
+          <p className="rounded-card border border-card-border bg-accent-soft/30 p-4 text-sm text-muted">
+            Each listing is from a different seller. Checkout one product at a
+            time so payment and shipping stay linked to that seller.
+          </p>
+        </div>
       )}
 
       <ConfirmDialog
