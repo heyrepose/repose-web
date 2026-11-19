@@ -244,3 +244,37 @@ export async function serverFetch<T>(
     };
   }
 }
+
+/** Server-side fetch that also returns response `meta`. */
+export async function serverFetchWithMeta<T>(
+  path: string,
+  init?: RequestInit & { next?: NextFetchRequestConfig; cache?: RequestCache },
+): Promise<{
+  data: T | null;
+  meta: import("@repose/api-types").ApiMeta | null;
+  error: string | null;
+}> {
+  try {
+    const res = await fetch(
+      `${API_BASE}${path.startsWith("/") ? path : `/${path}`}`,
+      {
+        ...init,
+        headers: {
+          "Content-Type": "application/json",
+          ...init?.headers,
+        },
+      },
+    );
+    if (!res.ok) {
+      return { data: null, meta: null, error: `HTTP ${res.status}` };
+    }
+    const json = (await res.json()) as ApiSuccess<T>;
+    return { data: json.data, meta: json.meta ?? null, error: null };
+  } catch (e) {
+    return {
+      data: null,
+      meta: null,
+      error: e instanceof Error ? e.message : "Network error",
+    };
+  }
+}

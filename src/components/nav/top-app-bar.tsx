@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { FormEvent, useEffect, useRef, useState } from "react";
+import { FormEvent, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Bell, Search, ShoppingBag, User } from "lucide-react";
+import { Bell, MapPin, Search, ShoppingBag, User } from "lucide-react";
 import { useAuth } from "@/lib/hooks";
 import { useAuthStore } from "@/lib/auth-store";
 import { getApiBaseUrl } from "@/lib/api-client";
@@ -26,7 +26,26 @@ export function TopAppBar() {
   const [open, setOpen] = useState(false);
   const [debounced, setDebounced] = useState("");
   const wrapRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLElement>(null);
   const cartCount = useCartCount();
+
+  useLayoutEffect(() => {
+    const el = headerRef.current;
+    if (!el) return;
+    const sync = () => {
+      document.documentElement.style.setProperty(
+        "--app-header-height",
+        `${el.offsetHeight}px`,
+      );
+    };
+    sync();
+    const ro = new ResizeObserver(sync);
+    ro.observe(el);
+    return () => {
+      ro.disconnect();
+      document.documentElement.style.removeProperty("--app-header-height");
+    };
+  }, []);
 
   useEffect(() => {
     const t = window.setTimeout(() => setDebounced(q.trim()), 250);
@@ -85,18 +104,26 @@ export function TopAppBar() {
   }
 
   return (
-    <header className="sticky top-0 z-40 bg-bg/95 backdrop-blur">
-      <div className="mx-auto flex max-w-[1440px] items-center gap-3 px-4 lg:px-8 py-3">
+    <header ref={headerRef} className="sticky top-0 z-40 w-full bg-bg font-sans">
+      {/* 1. Top Announcement Bar */}
+      <div className="bg-primary px-4 h-7 flex items-center justify-center text-center text-[10px] font-normal tracking-wide text-white md:text-[11px]">
+        Free shipping on orders over 200 AED · Authenticated in Dubai · New arrivals daily
+      </div>
+
+      {/* 2. Main Navigation Bar */}
+      <div className="mx-auto flex max-w-[1440px] items-center justify-between gap-2 px-4 py-1.5 lg:px-8">
+        {/* Brand Logo */}
         <Link
           href="/"
-          className="shrink-0 font-brand text-[1.65rem] leading-none text-primary"
+          className="shrink-0 font-brand text-2xl md:text-3xl leading-none text-primary"
         >
           Repose
         </Link>
 
-        <div ref={wrapRef} className="relative hidden flex-1 sm:block">
+        {/* Search Input Box */}
+        <div ref={wrapRef} className="relative flex-1 max-w-3xl mx-3 md:mx-6 hidden sm:block">
           <form onSubmit={onSearch} className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
             <input
               value={q}
               onChange={(e) => {
@@ -104,10 +131,12 @@ export function TopAppBar() {
                 setOpen(true);
               }}
               onFocus={() => setOpen(true)}
-              placeholder="Search fashion…"
-              className="h-11 w-full rounded-pill border border-card-border bg-surface pl-10 pr-3 text-sm outline-none focus:border-primary"
+              placeholder="Search by brand, article, or category…"
+              className="h-8 w-full rounded-md border border-card-border/80 bg-surface pl-9 pr-3 text-xs md:text-sm text-text placeholder:text-muted/80 outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-sm transition-all"
             />
           </form>
+
+          {/* Search Suggestions Dropdown */}
           {open && debounced.length >= 2 ? (
             <ul className="absolute inset-x-0 top-[calc(100%+6px)] z-50 overflow-hidden rounded-card border border-card-border bg-surface shadow-card">
               {suggestions.length ? (
@@ -152,61 +181,125 @@ export function TopAppBar() {
           ) : null}
         </div>
 
-        <div className="ml-auto flex items-center gap-1">
+        {/* Right Side Actions */}
+        <div className="flex items-center gap-2 md:gap-3 shrink-0">
           <Link
             href="/search"
-            className="flex h-11 w-11 items-center justify-center rounded-full text-primary sm:hidden"
+            className="flex h-8 w-8 items-center justify-center rounded-full text-primary sm:hidden"
             aria-label="Search"
           >
-            <Search className="h-5 w-5" />
+            <Search className="h-4 w-4" />
           </Link>
 
+          {/* Sell an item button */}
+          <Link
+            href="/sell"
+            className="inline-flex h-8 items-center justify-center rounded-md bg-primary px-3 text-xs font-medium text-surface hover:bg-primary/90 transition-colors shadow-sm"
+          >
+            Sell an item
+          </Link>
+
+          {/* Auth links or Profile */}
           {isAuthenticated ? (
-            <>
-              <Link
-                href="/cart"
-                className="relative flex h-11 w-11 items-center justify-center rounded-full text-primary"
-                aria-label="Bag"
-              >
-                <ShoppingBag className="h-5 w-5" />
-                {cartCount > 0 ? (
-                  <span
-                    className={cn(
-                      "absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-semibold text-surface",
-                    )}
-                  >
-                    {cartCount > 9 ? "9+" : cartCount}
-                  </span>
-                ) : null}
-              </Link>
+            <div className="flex items-center gap-1">
               <Link
                 href="/notifications"
-                className="relative flex h-11 w-11 items-center justify-center rounded-full text-primary"
+                className="relative flex h-8 w-8 items-center justify-center rounded-full text-text hover:bg-accent-soft/40"
                 aria-label="Notifications"
               >
-                <Bell className="h-5 w-5" />
+                <Bell className="h-4 w-4" />
                 {unreadCount > 0 ? (
-                  <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-primary" />
+                  <span className="absolute right-1 top-1 h-1.5 w-1.5 rounded-full bg-primary" />
                 ) : null}
               </Link>
               <Link
                 href="/profile"
-                className="flex h-11 w-11 items-center justify-center rounded-full text-primary"
+                className="flex h-8 w-8 items-center justify-center rounded-full text-text hover:bg-accent-soft/40"
                 aria-label="Profile"
               >
-                <User className="h-5 w-5" />
+                <User className="h-4 w-4" />
               </Link>
-            </>
+            </div>
           ) : (
-            <Link
-              href="/login"
-              className="rounded-pill bg-primary px-4 py-2 text-sm font-medium text-surface"
-            >
-              Log in
-            </Link>
+            <div className="flex items-center gap-2.5 text-xs font-medium text-text">
+              <Link href="/login" className="hover:opacity-80">
+                Sign in
+              </Link>
+              <Link href="/signup" className="underline underline-offset-4 hover:opacity-80">
+                Sign up
+              </Link>
+            </div>
           )}
+
+          {/* Cart Bag Icon with badge */}
+          <Link
+            href="/cart"
+            className="relative flex h-8 w-8 items-center justify-center text-text hover:opacity-80"
+            aria-label="Bag"
+          >
+            <ShoppingBag className="h-4 w-4 stroke-[1.75]" />
+            <span
+              className={cn(
+                "absolute -top-0.5 -right-1 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-[#9dc462] px-1 text-[9px] font-bold text-primary shadow-sm",
+              )}
+            >
+              {cartCount > 0 ? (cartCount > 9 ? "9+" : cartCount) : "2"}
+            </span>
+          </Link>
+        </div>
+      </div>
+
+      {/* 3. Sub-header / Category Navigation Bar */}
+      <div className="border-t border-b border-card-border/60 bg-[#e7ded0]/60">
+        <div className="relative mx-auto flex max-w-[1440px] h-9 items-center justify-center px-4 lg:px-8 text-[11px] md:text-xs font-medium">
+          {/* Location tag */}
+          <div className="absolute left-4 lg:left-8 hidden md:flex items-center gap-1 text-text/80 font-semibold tracking-wide uppercase shrink-0">
+            <MapPin className="h-3 w-3 text-primary fill-primary/20" />
+            <span>DUBAI - BUSINESS BAY</span>
+          </div>
+
+          {/* Category nav links */}
+          <div className="flex items-center justify-center gap-5 md:gap-8 overflow-x-auto no-scrollbar">
+            <Link
+              href="/search?filter=new-arrivals"
+              className="shrink-0 text-[#d43827] font-semibold hover:opacity-80 transition-opacity"
+            >
+              New Arrivals
+            </Link>
+            <Link
+              href="/category/designers"
+              className="shrink-0 text-text/80 hover:text-text transition-colors"
+            >
+              Designers
+            </Link>
+            <Link
+              href="/category/women"
+              className="shrink-0 text-text/80 hover:text-text transition-colors"
+            >
+              Women
+            </Link>
+            <Link
+              href="/category/men"
+              className="shrink-0 text-text/80 hover:text-text transition-colors"
+            >
+              Men
+            </Link>
+            <Link
+              href="/category/bags"
+              className="shrink-0 text-text/80 hover:text-text transition-colors"
+            >
+              Bags
+            </Link>
+            <Link
+              href="/category/accessories"
+              className="shrink-0 text-text/80 hover:text-text transition-colors"
+            >
+              Accessories
+            </Link>
+          </div>
         </div>
       </div>
     </header>
   );
 }
+
