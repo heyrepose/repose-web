@@ -1,6 +1,7 @@
 "use client";
 
 import { useAuth } from "@/lib/hooks";
+import { AddToCartButton } from "@/components/product/add-to-cart-button";
 import { MessageSellerButton } from "@/components/product/listing-actions";
 import { BuyButton } from "@/components/product/buy-button";
 import { OwnerListingActions } from "@/components/product/owner-listing-actions";
@@ -12,6 +13,7 @@ type Props = {
   status: string;
   priceAed: string;
   initiallySaved?: boolean;
+  /** Hide report + unavailable copy (mobile sticky bar). */
   compact?: boolean;
 };
 
@@ -21,7 +23,6 @@ export function ListingCtaBlock({
   sellerId,
   status,
   priceAed,
-  initiallySaved,
   compact = false,
 }: Props) {
   const { user } = useAuth();
@@ -35,12 +36,17 @@ export function ListingCtaBlock({
     <div className="flex flex-col gap-3">
       {status === "ACTIVE" ? (
         <>
+          <AddToCartButton listingId={listingId} prominent />
           <BuyButton listingId={listingId} priceAed={priceAed} />
           <MessageSellerButton listingId={listingId} sellerId={sellerId} />
         </>
       ) : !compact ? (
         <p className="text-sm text-muted">This item is not available.</p>
-      ) : null}
+      ) : (
+        <p className="w-full text-center text-sm text-muted">
+          This item is no longer available
+        </p>
+      )}
       {!compact ? (
         <div className="mt-2">
           <ReportListingButton listingId={listingId} />

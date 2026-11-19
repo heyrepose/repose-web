@@ -2,7 +2,7 @@ import type { ApiErrorBody, ApiSuccess } from "@repose/api-types";
 import { useAuthStore } from "./auth-store";
 
 const API_BASE =
-  process.env.NEXT_PUBLIC_API_BASE_URL ?? "http://localhost:4000/api/v1";
+  process.env.API_BASE_URL ?? "http://localhost:4000/api/v1";
 
 export class ApiError extends Error {
   statusCode: number;

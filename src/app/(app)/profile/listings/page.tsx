@@ -22,9 +22,13 @@ type InventoryItem = ProductCardItem & {
 };
 
 function continueHref(item: InventoryItem): string {
-  if (!item.mainImageUrl) return `/sell/${item.id}/photos`;
+  // Flow: details → condition-price → photos → checkout
   if (!item.title) return `/sell/${item.id}/details`;
-  return `/sell/${item.id}/condition-price`;
+  if (!item.priceAed || !item.condition) {
+    return `/sell/${item.id}/condition-price`;
+  }
+  if (!item.mainImageUrl) return `/sell/${item.id}/photos`;
+  return `/sell/${item.id}/checkout`;
 }
 
 export default function MyListingsPage() {

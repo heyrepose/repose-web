@@ -251,8 +251,13 @@ export default function EditListingPage() {
           className="hidden"
           onChange={(e) => onPick(e.target.files)}
         />
-        <div className="grid grid-cols-3 gap-3">
-          {slots.map((slot, i) => (
+        <div>
+          <p className="mb-1 text-sm font-medium text-text">Photos</p>
+          <p className="mb-3 text-xs text-muted">
+            Only 1 photo is required. Up to 5 total.
+          </p>
+          <div className="grid grid-cols-3 gap-3">
+            {slots.map((slot, i) => (
             <div key={i} className="relative aspect-[4/5]">
               {slot ? (
                 <>
@@ -299,6 +304,7 @@ export default function EditListingPage() {
               )}
             </div>
           ))}
+          </div>
         </div>
 
         <Input label="Title" error={errors.title?.message} {...register("title")} />

@@ -8,8 +8,9 @@ Next.js marketplace frontend for Repose (UAE pre-loved fashion).
 ## Setup
 
 ```bash
-cp .env.local.example .env.local
-# Point NEXT_PUBLIC_API_BASE_URL at the running API (default http://localhost:4000/api/v1)
+# Create/edit a single env file at the repo root: `.env`
+# Keys: API_BASE_URL, SOCKET_URL, STRIPE_PUBLISHABLE_KEY, SITE_URL
+# (no NEXT_PUBLIC_ prefix — same names on Vercel Environment Variables)
 pnpm install
 pnpm dev
 ```

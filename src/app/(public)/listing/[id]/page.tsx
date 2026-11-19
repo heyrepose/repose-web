@@ -107,8 +107,10 @@ export default async function ListingPage({
 
   return (
     <>
-      {/* Full-screen white background for the product page */}
-      <div className="fixed inset-0 -z-10 bg-surface pointer-events-none" aria-hidden="true" />
+      <div
+        className="pointer-events-none fixed inset-0 -z-10 bg-surface"
+        aria-hidden="true"
+      />
 
       <TrackListingView
         id={listing.id}
@@ -123,19 +125,16 @@ export default async function ListingPage({
         type="application/ld+json"
         dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
       />
-      
-      {/* Container: Max width 1280px, 8pt grid base (gap-8/10 etc) */}
-      <div className="mx-auto max-w-[1440px] pt-4 lg:pt-8 pb-16">
-        <div className="grid gap-8 lg:grid-cols-[11fr_9fr] xl:gap-14 items-start">
-          
-          {/* Left: Image Gallery (~55%) */}
+
+      <div className="mx-auto max-w-[1440px] pb-28 pt-4 lg:pb-16 lg:pt-8">
+        <div className="grid items-start gap-8 lg:grid-cols-[11fr_9fr] xl:gap-14">
           <div className="relative">
             <ImageGallery images={listing.images ?? []} alt={listing.title} />
-            {listing.isFeatured && (
-              <div className="absolute top-4 right-4 z-20 pointer-events-none">
+            {listing.isFeatured ? (
+              <div className="pointer-events-none absolute right-4 top-4 z-20">
                 <RareFindBadge />
               </div>
-            )}
+            ) : null}
             {sold ? (
               <div className="pointer-events-none absolute inset-0 overflow-hidden rounded-card">
                 <SoldOverlay />
@@ -143,70 +142,62 @@ export default async function ListingPage({
             ) : null}
           </div>
 
-          {/* Right: Product Info Panel (Sticky, ~45%) */}
-          <div className="flex flex-col lg:sticky lg:top-24 pb-8 lg:pb-0">
-            <div className="flex justify-between items-start gap-4">
+          <div className="flex flex-col pb-8 lg:sticky lg:top-24 lg:pb-0">
+            <div className="flex items-start justify-between gap-4">
               <div>
                 {listing.brand ? (
-                  <h2 className="text-[13px] font-bold uppercase tracking-widest text-text font-sans mb-1.5">
+                  <h2 className="mb-1.5 font-sans text-[13px] font-bold uppercase tracking-widest text-text">
                     {listing.brand}
                   </h2>
                 ) : null}
-                <h1 className="text-3xl lg:text-[2.5rem] font-bold font-sans text-text leading-[1.1] mb-2">
+                <h1 className="mb-2 font-sans text-3xl font-bold leading-[1.1] text-text lg:text-[2.5rem]">
                   {listing.title}
                 </h1>
               </div>
-              <div className="-mt-2 -mr-2">
-                <SaveButton listingId={listing.id} initiallySaved={Boolean(listing.isSavedByCurrentUser)} />
+              <div className="-mr-2 -mt-2">
+                <SaveButton
+                  listingId={listing.id}
+                  initiallySaved={Boolean(listing.isSavedByCurrentUser)}
+                />
               </div>
             </div>
 
-            <div className="mt-2 mb-8">
-              <PriceTag priceAed={listing.priceAed} className="text-3xl mb-6 inline-block" />
-              <div className="flex flex-wrap items-center gap-[10px]">
+            <div className="mb-8 mt-2">
+              <PriceTag
+                priceAed={listing.priceAed}
+                className="mb-6 inline-block text-3xl"
+              />
+              <div className="flex flex-wrap items-center gap-2.5">
                 <ConditionBadge condition={listing.condition} />
-                
-                {/* Size Pill */}
                 {listing.size ? (
-                  <span className="flex items-center justify-center rounded-full border border-[#E0E0E0] bg-surface px-4 h-10 text-xs font-bold uppercase tracking-wider text-[#888888]">
+                  <span className="flex h-10 items-center justify-center rounded-full border border-card-border bg-surface px-4 text-xs font-bold uppercase tracking-wider text-muted">
                     Size: {listing.size}
                   </span>
                 ) : null}
-                
-                {/* Mock Color Pill */}
-                <span className="flex items-center justify-center rounded-full border border-[#E0E0E0] bg-surface px-4 h-10 text-xs font-bold uppercase tracking-wider text-[#888888]">
-                  Color: Black
-                </span>
               </div>
             </div>
 
-            {/* CTAs */}
-            <div className="hidden lg:block w-full">
+            <div className="hidden w-full lg:block">
               <ListingCtaBlock
                 listingId={listing.id}
                 sellerId={listing.seller.id}
                 status={listing.status}
                 priceAed={listing.priceAed}
-                initiallySaved={Boolean(listing.isSavedByCurrentUser)}
               />
             </div>
 
-            {/* Seller Card */}
             <SellerCard seller={listing.seller} />
-
-            {/* Delivery Options */}
             <DeliveryOptions />
-
-            {/* Description Accordion */}
-            <DescriptionAccordion description={listing.description} condition={listing.condition} />
-
-            {/* Trust Section */}
+            <DescriptionAccordion
+              description={listing.description}
+              condition={listing.condition}
+            />
             <TrustSection />
           </div>
         </div>
       </div>
 
-      <div className="mx-auto max-w-[1440px]">
+      <div className="mx-auto max-w-[1440px] px-screen pb-24 lg:pb-8">
         <SimilarListingsRail listingId={listing.id} />
         <SellerListingsRail
           sellerId={listing.seller.id}
@@ -215,15 +206,14 @@ export default async function ListingPage({
         <RecentlyViewedRail excludeId={listing.id} />
       </div>
 
-      {/* Sticky mobile CTA */}
-      <div className="fixed inset-x-0 bottom-0 z-30 border-t border-card-border bg-surface/95 px-screen py-4 pb-safe backdrop-blur lg:hidden shadow-[0_-4px_12px_rgba(0,0,0,0.03)]">
+      {/* Sit above mobile bottom nav */}
+      <div className="fixed inset-x-0 bottom-[calc(72px+env(safe-area-inset-bottom))] z-30 border-t border-card-border bg-surface/95 px-screen py-3 shadow-[0_-4px_12px_rgba(0,0,0,0.03)] backdrop-blur lg:hidden">
         <div className="mx-auto flex max-w-[1440px] flex-col gap-2">
           <ListingCtaBlock
             listingId={listing.id}
             sellerId={listing.seller.id}
             status={listing.status}
             priceAed={listing.priceAed}
-            initiallySaved={Boolean(listing.isSavedByCurrentUser)}
             compact
           />
         </div>

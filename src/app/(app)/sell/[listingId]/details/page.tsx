@@ -90,7 +90,7 @@ export default function SellDetailsPage() {
     <div className="mx-auto max-w-lg">
       <h1 className="text-2xl font-semibold">Details</h1>
       <p className="mt-1 text-sm text-muted">
-        Title is required. Brand and description are optional.
+        Step 2 of 5 — title is required. Brand and description are optional.
       </p>
 
       <form onSubmit={handleSubmit(onSubmit)} className="mt-6 flex flex-col gap-4">

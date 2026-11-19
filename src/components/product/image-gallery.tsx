@@ -18,8 +18,6 @@ export function ImageGallery({ images, alt, className }: Props) {
   const [index, setIndex] = useState(0);
   const [viewerOpen, setViewerOpen] = useState(false);
 
-  const current = sorted[index]?.url;
-
   const go = useCallback(
     (dir: -1 | 1) => {
       if (!sorted.length) return;
@@ -58,9 +56,9 @@ export function ImageGallery({ images, alt, className }: Props) {
 
   return (
     <>
-      <div className={cn("flex flex-col md:flex-row gap-3 md:gap-4", className)}>
+      <div className={cn("flex flex-col gap-3 md:flex-row md:gap-4", className)}>
         {sorted.length > 1 ? (
-          <div className="flex md:flex-col gap-2 md:gap-3 overflow-x-auto md:overflow-y-auto pb-2 md:pb-0 md:pr-2 order-2 md:order-1 scrollbar-hide">
+          <div className="order-2 flex gap-2 overflow-x-auto pb-2 scrollbar-hide md:order-1 md:flex-col md:gap-3 md:overflow-y-auto md:pb-0 md:pr-2">
             {sorted.map((img, i) => (
               <button
                 key={`${img.url}-${i}`}
@@ -68,8 +66,10 @@ export function ImageGallery({ images, alt, className }: Props) {
                 onClick={() => setIndex(i)}
                 onMouseEnter={() => setIndex(i)}
                 className={cn(
-                  "relative h-20 w-16 md:h-32 md:w-24 shrink-0 overflow-hidden rounded-card border-2 transition-all duration-200",
-                  i === index ? "border-primary opacity-100" : "border-transparent opacity-60 hover:opacity-100",
+                  "relative h-20 w-16 shrink-0 overflow-hidden rounded-card border-2 transition-all duration-200 md:h-32 md:w-24",
+                  i === index
+                    ? "border-primary opacity-100"
+                    : "border-transparent opacity-60 hover:opacity-100",
                 )}
               >
                 <Image
@@ -86,7 +86,7 @@ export function ImageGallery({ images, alt, className }: Props) {
 
         <button
           type="button"
-          className="relative aspect-[4/5] w-full flex-1 overflow-hidden rounded-card border border-card-border bg-accent-soft shadow-card order-1 md:order-2 md:aspect-auto md:h-[calc(100vh-160px)] md:max-h-[720px]"
+          className="relative order-1 aspect-[4/5] w-full flex-1 overflow-hidden rounded-card border border-card-border bg-accent-soft shadow-card md:order-2 md:aspect-auto md:h-[calc(100vh-160px)] md:max-h-[720px]"
           onClick={() => setViewerOpen(true)}
           aria-label="Open image viewer"
         >
@@ -99,13 +99,13 @@ export function ImageGallery({ images, alt, className }: Props) {
               priority={i === 0}
               className={cn(
                 "object-cover transition-opacity duration-300 ease-in-out",
-                i === index ? "opacity-100 z-10" : "opacity-0 z-0"
+                i === index ? "z-10 opacity-100" : "z-0 opacity-0",
               )}
               sizes="(max-width: 1024px) 100vw, 50vw"
             />
           ))}
           {sorted.length > 1 ? (
-            <div className="absolute bottom-3 left-1/2 flex -translate-x-1/2 gap-1.5 md:hidden z-20">
+            <div className="absolute bottom-3 left-1/2 z-20 flex -translate-x-1/2 gap-1.5 md:hidden">
               {sorted.map((_, i) => (
                 <span
                   key={i}
@@ -123,7 +123,7 @@ export function ImageGallery({ images, alt, className }: Props) {
       {viewerOpen ? (
         <div className="fixed inset-0 z-50 flex flex-col bg-text animate-fade-in">
           <div className="flex items-center justify-between px-4 py-3 text-surface">
-            <span className="text-sm">
+            <span className="text-sm tabular-nums">
               {index + 1} / {sorted.length}
             </span>
             <button
@@ -155,7 +155,7 @@ export function ImageGallery({ images, alt, className }: Props) {
                   fill
                   className={cn(
                     "object-contain transition-opacity duration-300 ease-in-out",
-                    i === index ? "opacity-100 z-10" : "opacity-0 z-0"
+                    i === index ? "z-10 opacity-100" : "z-0 opacity-0",
                   )}
                   sizes="100vw"
                 />

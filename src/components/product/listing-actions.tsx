@@ -45,13 +45,13 @@ export function SaveButton({ listingId, initiallySaved }: SaveProps) {
         if (!requireAuth()) return;
         saveMutation.mutate();
       }}
-      className="flex h-[44px] w-[44px] items-center justify-center rounded-full hover:bg-[#D6E4DA] transition-colors"
+      className="flex h-[44px] w-[44px] items-center justify-center rounded-full transition-colors hover:bg-accent-soft"
       aria-label="Save listing"
     >
       <Heart
         className={cn(
           "h-6 w-6 transition-transform hover:scale-110",
-          saved ? "fill-primary text-primary" : "text-text"
+          saved ? "fill-primary text-primary" : "text-text",
         )}
       />
     </button>
@@ -85,7 +85,7 @@ export function MessageSellerButton({ listingId, sellerId }: MessageProps) {
 
   return (
     <Button
-      className="w-full bg-transparent text-primary border-[1.5px] border-primary hover:bg-accent-soft h-14 rounded-full font-bold"
+      className="h-14 w-full rounded-full border-[1.5px] border-primary bg-transparent font-bold text-primary hover:bg-accent-soft"
       disabled={messageMutation.isPending}
       onClick={() => {
         if (!requireAuth()) return;

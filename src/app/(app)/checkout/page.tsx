@@ -14,7 +14,6 @@ import { Suspense, useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch, getErrorToastMessage } from "@/lib/api-client";
 import { useRequireAuth } from "@/lib/hooks";
-import { useCart, type CartResponse } from "@/lib/cart";
 import { formatAed, cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -46,6 +45,7 @@ type ListingPreview = {
   id: string;
   title: string;
   priceAed: string;
+  status?: string;
   images?: Array<{ url: string }>;
   mainImageUrl?: string | null;
 };
@@ -108,11 +108,9 @@ function CheckoutInner() {
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const listingIdParam = searchParams.get("listingId");
-  const fromCart = searchParams.get("from") === "cart";
 
   const [step, setStep] = useState<"address" | "pay">("address");
   const [listing, setListing] = useState<ListingPreview | null>(null);
-  const [cartSnapshot, setCartSnapshot] = useState<CartResponse | null>(null);
   const [addresses, setAddresses] = useState<Address[]>([]);
   const [addressId, setAddressId] = useState<string | null>(null);
   const [order, setOrder] = useState<OrderCreate | null>(null);
@@ -129,7 +127,6 @@ function CheckoutInner() {
     isDefault: true,
   });
 
-  const { data: cart } = useCart();
   const { data: payConfig } = useQuery({
     queryKey: ["payments", "config"],
     queryFn: () => apiFetch<PayConfig>("/payments/config"),
@@ -167,11 +164,34 @@ function CheckoutInner() {
 
     async function load() {
       try {
+        // Resume an in-progress single-item payment if the browser still has it.
         const stored = sessionStorage.getItem("repose_checkout");
         if (stored) {
-          const parsed = JSON.parse(stored) as OrderCreate;
+          const parsed = JSON.parse(stored) as OrderCreate & {
+            listingId?: string;
+          };
           setOrder(parsed);
           setStep("pay");
+          // Best-effort: still show which listing if we can load it
+          const id =
+            listingIdParam ??
+            parsed.listingId ??
+            (() => {
+              try {
+                const raw = sessionStorage.getItem("repose_checkout_listing");
+                return raw
+                  ? (JSON.parse(raw) as { listingId: string }).listingId
+                  : null;
+              } catch {
+                return null;
+              }
+            })();
+          if (id) {
+            const listingData = await apiFetch<ListingPreview>(
+              `/listings/${id}`,
+            ).catch(() => null);
+            if (listingData) setListing(listingData);
+          }
           setLoading(false);
           return;
         }
@@ -186,38 +206,41 @@ function CheckoutInner() {
           null;
         setAddressId(def);
 
-        if (fromCart) {
-          const c =
-            cart ?? (await apiFetch<CartResponse>("/cart").catch(() => null));
-          if (!c || c.availableCount < 1) {
-            setError("Your bag has no available items.");
-            setLoading(false);
-            return;
-          }
-          setCartSnapshot(c);
-        } else {
-          const id =
-            listingIdParam ??
-            (() => {
-              try {
-                const raw = sessionStorage.getItem("repose_checkout_listing");
-                return raw
-                  ? (JSON.parse(raw) as { listingId: string }).listingId
-                  : null;
-              } catch {
-                return null;
-              }
-            })();
+        const id =
+          listingIdParam ??
+          (() => {
+            try {
+              const raw = sessionStorage.getItem("repose_checkout_listing");
+              return raw
+                ? (JSON.parse(raw) as { listingId: string }).listingId
+                : null;
+            } catch {
+              return null;
+            }
+          })();
 
-          if (!id) {
-            setError("No listing selected for checkout.");
-            setLoading(false);
-            return;
-          }
-
-          const listingData = await apiFetch<ListingPreview>(`/listings/${id}`);
-          setListing(listingData);
+        if (!id) {
+          setError(
+            "No item selected. Open your bag and checkout one product at a time.",
+          );
+          setLoading(false);
+          return;
         }
+
+        const listingData = await apiFetch<ListingPreview>(`/listings/${id}`);
+        if (listingData.status && listingData.status !== "ACTIVE") {
+          setError("This listing is no longer available.");
+          setLoading(false);
+          return;
+        }
+        setListing(listingData);
+        sessionStorage.setItem(
+          "repose_checkout_listing",
+          JSON.stringify({
+            listingId: listingData.id,
+            priceAed: listingData.priceAed,
+          }),
+        );
       } catch (e) {
         setError(getErrorToastMessage(e, "Checkout failed."));
       } finally {
@@ -227,31 +250,25 @@ function CheckoutInner() {
 
     void load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [cart?.id]);
-
-  const listingIds = useMemo(() => {
-    if (fromCart && cartSnapshot) {
-      return cartSnapshot.groups.flatMap((g) =>
-        g.items.filter((i) => i.isAvailable).map((i) => i.listingId),
-      );
-    }
-    return listing ? [listing.id] : [];
-  }, [fromCart, cartSnapshot, listing]);
-
-  const displayTotal = fromCart
-    ? cartSnapshot?.subtotalAed ?? "0"
-    : listing?.priceAed ?? "0";
+  }, [listingIdParam]);
 
   async function createOrder() {
-    if (!addressId || listingIds.length < 1) return;
+    if (!addressId || !listing) return;
     setCreating(true);
     setError(null);
     try {
+      // P2P: exactly one listing per order
       const created = await apiFetch<OrderCreate>("/orders", {
         method: "POST",
-        body: JSON.stringify({ listingIds, addressId }),
+        body: JSON.stringify({
+          listingIds: [listing.id],
+          addressId,
+        }),
       });
-      sessionStorage.setItem("repose_checkout", JSON.stringify(created));
+      sessionStorage.setItem(
+        "repose_checkout",
+        JSON.stringify({ ...created, listingId: listing.id }),
+      );
       setOrder(created);
       setStep("pay");
       toast("Order created — complete payment", "default");
@@ -292,7 +309,7 @@ function CheckoutInner() {
     );
   }
 
-  if (error && !listing && !cartSnapshot && !order) {
+  if (error && !listing && !order) {
     return (
       <div className="mx-auto max-w-lg">
         <h1 className="text-2xl font-semibold">Checkout</h1>
@@ -306,10 +323,16 @@ function CheckoutInner() {
 
   const imageUrl =
     listing?.images?.[0]?.url ?? listing?.mainImageUrl ?? null;
+  const displayTotal = listing?.priceAed ?? order?.totalAed ?? "0";
 
   return (
     <div className="mx-auto flex max-w-lg flex-col gap-6">
-      <h1 className="text-2xl font-semibold">Checkout</h1>
+      <div>
+        <h1 className="text-2xl font-semibold">Checkout</h1>
+        <p className="mt-1 text-sm text-muted">
+          One listing per order — pay and ship with that seller only.
+        </p>
+      </div>
 
       {listing ? (
         <div className="flex gap-3 rounded-card border border-card-border bg-surface p-3 shadow-card">
@@ -331,41 +354,6 @@ function CheckoutInner() {
             </p>
           </div>
         </div>
-      ) : null}
-
-      {fromCart && cartSnapshot ? (
-        <ul className="flex flex-col gap-2">
-          {cartSnapshot.groups.flatMap((g) =>
-            g.items
-              .filter((i) => i.isAvailable)
-              .map((item) => (
-                <li
-                  key={item.listingId}
-                  className="flex gap-3 rounded-card border border-card-border bg-surface p-3 text-sm shadow-card"
-                >
-                  <div className="relative h-16 w-14 shrink-0 overflow-hidden rounded-card bg-accent-soft">
-                    {item.listing.mainImageUrl ? (
-                      <Image
-                        src={item.listing.mainImageUrl}
-                        alt=""
-                        fill
-                        className="object-cover"
-                        sizes="56px"
-                      />
-                    ) : null}
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <p className="line-clamp-2 font-medium">
-                      {item.listing.title}
-                    </p>
-                    <p className="mt-1 font-semibold">
-                      {formatAed(item.listing.priceAed ?? "0")}
-                    </p>
-                  </div>
-                </li>
-              )),
-          )}
-        </ul>
       ) : null}
 
       {step === "address" ? (
@@ -416,7 +404,7 @@ function CheckoutInner() {
 
           <div className="rounded-card border border-card-border bg-surface p-4 shadow-card">
             <div className="flex justify-between text-sm">
-              <span className="text-muted">Subtotal</span>
+              <span className="text-muted">Item price</span>
               <span>{formatAed(displayTotal)}</span>
             </div>
             <p className="mt-2 text-xs text-muted">
@@ -433,7 +421,7 @@ function CheckoutInner() {
 
           <Button
             className="w-full"
-            disabled={!addressId || creating || listingIds.length < 1}
+            disabled={!addressId || creating || !listing}
             onClick={createOrder}
           >
             {creating ? <Spinner className="h-4 w-4" /> : null}

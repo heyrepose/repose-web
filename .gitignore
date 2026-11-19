@@ -11,7 +11,7 @@ coverage/
 .turbo/
 *.tsbuildinfo
 
-# Env & secrets (including *.example / *.development)
+# Env & secrets — web uses only `.env` (never commit it)
 .env
 .env.*
 *.env

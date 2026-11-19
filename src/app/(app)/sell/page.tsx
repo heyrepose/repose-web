@@ -17,9 +17,13 @@ type Category = { id: string; name: string; slug: string; isActive?: boolean };
 type DraftItem = ProductCardItem & { status?: string };
 
 function continueHref(item: DraftItem): string {
-  if (!item.mainImageUrl) return `/sell/${item.id}/photos`;
+  // Flow: category → details → condition-price → photos → checkout (review & publish)
   if (!item.title) return `/sell/${item.id}/details`;
-  return `/sell/${item.id}/condition-price`;
+  if (!item.priceAed || !item.condition) {
+    return `/sell/${item.id}/condition-price`;
+  }
+  if (!item.mainImageUrl) return `/sell/${item.id}/photos`;
+  return `/sell/${item.id}/checkout`;
 }
 
 export default function SellStartPage() {
@@ -52,7 +56,7 @@ export default function SellStartPage() {
         method: "POST",
         body: JSON.stringify({ categoryId: selected }),
       });
-      router.push(`/sell/${listing.id}/photos`);
+      router.push(`/sell/${listing.id}/details`);
     } catch (e) {
       const message = getErrorToastMessage(e, "Could not start listing.");
       setError(message);
@@ -65,7 +69,8 @@ export default function SellStartPage() {
     <div className="mx-auto max-w-lg">
       <h1 className="text-2xl font-semibold">Sell an item</h1>
       <p className="mt-1 text-sm text-muted">
-        Step 1 of 3 — pick a category. Photos, condition, and price come next.
+        Step 1 of 5 — pick a category, then details, price, photos, and
+        publish.
       </p>
 
       {(drafts ?? []).length > 0 ? (
