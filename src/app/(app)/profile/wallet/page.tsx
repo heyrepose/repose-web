@@ -24,26 +24,16 @@ type Wallet = {
   }>;
 };
 
-type PayConfig = { mode: "mock" | "stripe"; publishableKey?: string | null };
-
 export default function WalletPage() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [amount, setAmount] = useState("");
   const [withdrawOpen, setWithdrawOpen] = useState(false);
-  const [mockOpen, setMockOpen] = useState(false);
 
   const { data, isLoading } = useQuery({
     queryKey: ["wallet"],
     queryFn: () => apiFetch<Wallet>("/wallet"),
   });
-
-  const { data: payConfig } = useQuery({
-    queryKey: ["payments", "config"],
-    queryFn: () => apiFetch<PayConfig>("/payments/config", { skipAuth: true }),
-  });
-
-  const isMock = payConfig?.mode === "mock";
 
   const onboard = useMutation({
     mutationFn: () =>
@@ -56,18 +46,6 @@ export default function WalletPage() {
     },
     onError: (e) =>
       toast("Onboarding failed", "error", e),
-  });
-
-  const mockComplete = useMutation({
-    mutationFn: () =>
-      apiFetch("/wallet/dev/complete-onboarding", { method: "POST" }),
-    onSuccess: () => {
-      setMockOpen(false);
-      void queryClient.invalidateQueries({ queryKey: ["wallet"] });
-      toast("Payout setup complete — you can ship orders now", "success");
-    },
-    onError: (e) =>
-      toast("Could not complete onboarding", "error", e),
   });
 
   const withdraw = useMutation({
@@ -114,27 +92,15 @@ export default function WalletPage() {
         <div className="rounded-card border border-card-border bg-surface p-4 shadow-card">
           <p className="text-sm font-semibold">Set up payouts</p>
           <p className="mt-1 text-sm text-muted">
-            {isMock
-              ? "Mock mode — complete payout setup locally so you can ship orders."
-              : "Connect Stripe to withdraw your earnings."}
+            Connect Stripe to withdraw your earnings.
           </p>
-          {isMock ? (
-            <Button
-              className="mt-4 w-full"
-              disabled={mockComplete.isPending}
-              onClick={() => setMockOpen(true)}
-            >
-              Complete payout setup
-            </Button>
-          ) : (
-            <Button
-              className="mt-4 w-full"
-              disabled={onboard.isPending}
-              onClick={() => onboard.mutate()}
-            >
-              Continue onboarding
-            </Button>
-          )}
+          <Button
+            className="mt-4 w-full"
+            disabled={onboard.isPending}
+            onClick={() => onboard.mutate()}
+          >
+            Continue onboarding
+          </Button>
         </div>
       ) : (
         <div className="flex flex-col gap-3 rounded-card border border-card-border bg-surface p-4 shadow-card">
@@ -179,16 +145,6 @@ export default function WalletPage() {
           </ul>
         )}
       </section>
-
-      <ConfirmDialog
-        open={mockOpen}
-        onClose={() => setMockOpen(false)}
-        onConfirm={() => mockComplete.mutate()}
-        title="Complete payout setup?"
-        description="This marks Connect onboarding complete in mock mode so you can ship and withdraw locally."
-        confirmLabel="Complete setup"
-        busy={mockComplete.isPending}
-      />
 
       <ConfirmDialog
         open={withdrawOpen}

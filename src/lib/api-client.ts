@@ -51,41 +51,75 @@ export function getApiBaseUrl(): string {
 
 let refreshPromise: Promise<boolean> | null = null;
 
-async function refreshSession(): Promise<boolean> {
+async function doRefresh(): Promise<boolean> {
+  try {
+    const res = await fetch(`${API_BASE}/auth/refresh`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+    if (!res.ok) {
+      // Only an auth rejection means the session is gone. A 5xx / 429 / offline blip
+      // must not sign the user out.
+      if (res.status === 401 || res.status === 403) {
+        useAuthStore.getState().clearSession();
+      }
+      return false;
+    }
+    const json = (await res.json()) as ApiSuccess<{
+      accessToken: string;
+      user?: AuthUserShape;
+    }>;
+    const { accessToken, user } = json.data;
+    const current = useAuthStore.getState();
+    useAuthStore.getState().setSession({
+      accessToken,
+      user: user ?? current.user,
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Exchanges the httpOnly refresh cookie for a new access token (kept in memory only).
+ *
+ * Refresh tokens rotate and reuse is treated as theft, so two tabs refreshing at the same
+ * moment would sign the user out everywhere. The Web Lock serialises refreshes across tabs:
+ * the second tab waits, then sends the cookie the first tab just received.
+ */
+export function refreshSession(): Promise<boolean> {
   if (refreshPromise) return refreshPromise;
 
   refreshPromise = (async () => {
     try {
-      const res = await fetch(`${API_BASE}/auth/refresh`, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({}),
-      });
-      if (!res.ok) {
-        useAuthStore.getState().clearSession();
-        return false;
+      if (typeof navigator !== "undefined" && navigator.locks) {
+        return await navigator.locks.request("repose-refresh", doRefresh);
       }
-      const json = (await res.json()) as ApiSuccess<{
-        accessToken: string;
-        user?: AuthUserShape;
-      }>;
-      const { accessToken, user } = json.data;
-      const current = useAuthStore.getState();
-      useAuthStore.getState().setSession({
-        accessToken,
-        user: user ?? current.user,
-      });
-      return true;
-    } catch {
-      useAuthStore.getState().clearSession();
-      return false;
+      return await doRefresh();
     } finally {
       refreshPromise = null;
     }
   })();
 
   return refreshPromise;
+}
+
+/** Revokes the refresh token server-side (and clears its cookie), then clears local state. */
+export async function signOut(): Promise<void> {
+  try {
+    await fetch(`${API_BASE}/auth/logout`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({}),
+    });
+  } catch {
+    // Offline: still sign out locally; the refresh token expires on its own.
+  }
+  useAuthStore.getState().clearSession();
 }
 
 type AuthUserShape = {

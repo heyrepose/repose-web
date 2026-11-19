@@ -7,6 +7,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { apiFetch, getErrorToastMessage } from "@/lib/api-client";
+import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
@@ -17,7 +18,15 @@ const schema = z
     fullName: z.string().min(2).max(80),
     phone: z.string().optional(),
     email: z.string().email().optional().or(z.literal("")),
-    password: z.string().min(8).max(72).optional().or(z.literal("")),
+    password: z
+      .string()
+      .max(72)
+      .regex(
+        /^(?=.*[A-Za-z])(?=.*\d).{8,}$/,
+        "At least 8 characters with a letter and a number",
+      )
+      .optional()
+      .or(z.literal("")),
   })
   .refine((v) => Boolean(v.phone?.trim() || v.email?.trim()), {
     message: "Phone or email is required",
@@ -58,15 +67,15 @@ export default function SignupPage() {
 
       const phone = values.phone?.trim();
       if (phone) {
-        await apiFetch("/auth/otp/request", {
-          method: "POST",
-          skipAuth: true,
-          body: JSON.stringify({ phone, purpose: "SIGNUP" }),
-        });
+        // The API already sent the verification code as part of signup; requesting another
+        // here would hit its 60-second resend limit.
         toast("Check your phone for a code", "success");
         router.push(`/otp?phone=${encodeURIComponent(phone)}&purpose=SIGNUP`);
       } else {
-        toast("Account created — log in to continue", "success");
+        toast(
+          "Account created — check your email to verify it, then log in",
+          "success",
+        );
         router.push("/login");
       }
     } catch (e) {
@@ -116,6 +125,8 @@ export default function SignupPage() {
         <Input
           label="Password (optional)"
           type="password"
+          autoComplete="new-password"
+          placeholder="8+ characters, a letter and a number"
           error={errors.password?.message}
           {...register("password")}
         />
@@ -125,6 +136,10 @@ export default function SignupPage() {
           Continue
         </Button>
       </form>
+
+      <div className="mt-6">
+        <GoogleSignInButton />
+      </div>
     </div>
   );
 }

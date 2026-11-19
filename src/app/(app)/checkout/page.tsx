@@ -1,25 +1,17 @@
 "use client";
 
-import {
-  Elements,
-  PaymentElement,
-  useElements,
-  useStripe,
-} from "@stripe/react-stripe-js";
-import { loadStripe } from "@stripe/stripe-js";
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "next/navigation";
+import { Suspense, useEffect, useState } from "react";
 import { apiFetch, getErrorToastMessage } from "@/lib/api-client";
 import { useRequireAuth } from "@/lib/hooks";
 import { formatAed, cn } from "@/lib/utils";
+import { SandboxTestCards } from "@/components/checkout/sandbox-test-cards";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Spinner } from "@/components/ui/spinner";
 import { Sheet } from "@/components/ui/sheet";
-import { MockPaymentForm } from "@/components/checkout/mock-payment-form";
 import { useToast } from "@/components/ui/toast";
 
 type OrderCreate = {
@@ -28,7 +20,8 @@ type OrderCreate = {
   subtotalAed?: string;
   commissionAed?: string;
   totalAed: string;
-  clientSecret: string;
+  /** Stripe-hosted Checkout page to send the buyer to. */
+  checkoutUrl: string;
 };
 
 type Address = {
@@ -50,64 +43,13 @@ type ListingPreview = {
   mainImageUrl?: string | null;
 };
 
-type PayConfig = {
-  mode: "mock" | "stripe";
-  publishableKey?: string | null;
-};
-
-function StripePaymentForm({
-  orderId,
-  totalAed,
-}: {
-  orderId: string;
-  totalAed: string;
-}) {
-  const stripe = useStripe();
-  const elements = useElements();
-  const router = useRouter();
-  const { toast } = useToast();
-  const [error, setError] = useState<string | null>(null);
-  const [busy, setBusy] = useState(false);
-
-  async function onPay() {
-    if (!stripe || !elements) return;
-    setBusy(true);
-    setError(null);
-    const { error: stripeError } = await stripe.confirmPayment({
-      elements,
-      confirmParams: {
-        return_url: `${window.location.origin}/checkout/confirmation?orderId=${orderId}`,
-      },
-      redirect: "if_required",
-    });
-    if (stripeError) {
-      const message = stripeError.message ?? "Payment failed";
-      setError(message);
-      toast(message, "error");
-      setBusy(false);
-      return;
-    }
-    toast("Payment successful", "success");
-    router.push(`/checkout/confirmation?orderId=${orderId}`);
-  }
-
-  return (
-    <div className="flex flex-col gap-4">
-      <PaymentElement options={{ layout: "tabs" }} />
-      {error ? <p className="text-sm text-muted">{error}</p> : null}
-      <Button disabled={busy || !stripe} onClick={onPay} className="w-full">
-        {busy ? <Spinner className="h-4 w-4" /> : null}
-        Pay {formatAed(totalAed)}
-      </Button>
-    </div>
-  );
-}
-
 function CheckoutInner() {
   const requireAuth = useRequireAuth();
   const { toast } = useToast();
   const searchParams = useSearchParams();
   const listingIdParam = searchParams.get("listingId");
+  // Stripe sends the buyer back here (cancel_url) if they leave the payment page.
+  const canceled = searchParams.get("canceled") === "1";
 
   const [step, setStep] = useState<"address" | "pay">("address");
   const [listing, setListing] = useState<ListingPreview | null>(null);
@@ -127,35 +69,6 @@ function CheckoutInner() {
     isDefault: true,
   });
 
-  const { data: payConfig } = useQuery({
-    queryKey: ["payments", "config"],
-    queryFn: () => apiFetch<PayConfig>("/payments/config"),
-  });
-
-  const stripePromise = useMemo(() => {
-    if (payConfig?.mode !== "stripe" || !payConfig.publishableKey) return null;
-    return loadStripe(payConfig.publishableKey);
-  }, [payConfig]);
-
-  const options = useMemo(
-    () =>
-      order?.clientSecret
-        ? {
-            clientSecret: order.clientSecret,
-            appearance: {
-              theme: "stripe" as const,
-              variables: {
-                colorPrimary: "#264A2E",
-                colorBackground: "#FFFFFF",
-                colorText: "#000000",
-                borderRadius: "12px",
-              },
-            },
-          }
-        : undefined,
-    [order?.clientSecret],
-  );
-
   useEffect(() => {
     if (!requireAuth()) {
       setLoading(false);
@@ -164,37 +77,8 @@ function CheckoutInner() {
 
     async function load() {
       try {
-        // Resume an in-progress single-item payment if the browser still has it.
-        const stored = sessionStorage.getItem("repose_checkout");
-        if (stored) {
-          const parsed = JSON.parse(stored) as OrderCreate & {
-            listingId?: string;
-          };
-          setOrder(parsed);
-          setStep("pay");
-          // Best-effort: still show which listing if we can load it
-          const id =
-            listingIdParam ??
-            parsed.listingId ??
-            (() => {
-              try {
-                const raw = sessionStorage.getItem("repose_checkout_listing");
-                return raw
-                  ? (JSON.parse(raw) as { listingId: string }).listingId
-                  : null;
-              } catch {
-                return null;
-              }
-            })();
-          if (id) {
-            const listingData = await apiFetch<ListingPreview>(
-              `/listings/${id}`,
-            ).catch(() => null);
-            if (listingData) setListing(listingData);
-          }
-          setLoading(false);
-          return;
-        }
+        // Older builds kept an in-page card form's state here; payment now lives on Stripe.
+        sessionStorage.removeItem("repose_checkout");
 
         const addressList = await apiFetch<Address[]>("/addresses").catch(
           () => [] as Address[],
@@ -265,18 +149,14 @@ function CheckoutInner() {
           addressId,
         }),
       });
-      sessionStorage.setItem(
-        "repose_checkout",
-        JSON.stringify({ ...created, listingId: listing.id }),
-      );
       setOrder(created);
       setStep("pay");
-      toast("Order created — complete payment", "default");
+      // Payment happens on Stripe's hosted page; the webhook (not this redirect) confirms it.
+      window.location.assign(created.checkoutUrl);
     } catch (e) {
-      const message = getErrorToastMessage(e, "Could not create order.");
+      const message = getErrorToastMessage(e, "Could not start payment.");
       setError(message);
-      toast("Could not create order.", "error", e);
-    } finally {
+      toast("Could not start payment.", "error", e);
       setCreating(false);
     }
   }
@@ -358,6 +238,12 @@ function CheckoutInner() {
 
       {step === "address" ? (
         <>
+          {canceled ? (
+            <p className="rounded-card border border-card-border bg-accent-soft/40 px-3 py-2 text-sm text-muted">
+              Payment was cancelled — you haven&apos;t been charged. Choose an
+              address to try again.
+            </p>
+          ) : null}
           <section>
             <div className="mb-3 flex items-center justify-between">
               <h2 className="text-sm font-semibold">Delivery address</h2>
@@ -417,6 +303,8 @@ function CheckoutInner() {
             </div>
           </div>
 
+          <SandboxTestCards />
+
           {error ? <p className="text-sm text-muted">{error}</p> : null}
 
           <Button
@@ -441,19 +329,18 @@ function CheckoutInner() {
             </p>
           </div>
 
-          {payConfig?.mode === "mock" || !stripePromise || !options ? (
-            <MockPaymentForm
-              orderId={order.orderId}
-              totalAed={order.totalAed}
-            />
-          ) : (
-            <Elements stripe={stripePromise} options={options}>
-              <StripePaymentForm
-                orderId={order.orderId}
-                totalAed={order.totalAed}
-              />
-            </Elements>
-          )}
+          <div className="flex flex-col items-center gap-3 text-center">
+            <Spinner />
+            <p className="text-sm text-muted">
+              Taking you to our secure payment page…
+            </p>
+            <a
+              href={order.checkoutUrl}
+              className="text-sm font-medium text-primary underline-offset-2 hover:underline"
+            >
+              Not redirected? Continue to payment
+            </a>
+          </div>
         </>
       ) : null}
 

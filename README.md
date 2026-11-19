@@ -9,7 +9,8 @@ Next.js marketplace frontend for Repose (UAE pre-loved fashion).
 
 ```bash
 # Create/edit a single env file at the repo root: `.env`
-# Keys: API_BASE_URL, SOCKET_URL, STRIPE_PUBLISHABLE_KEY, SITE_URL
+# Keys: API_BASE_URL, SOCKET_URL, SITE_URL, GOOGLE_CLIENT_ID (optional)
+# (payment is a redirect to Stripe-hosted Checkout — no Stripe key in the web app)
 # (no NEXT_PUBLIC_ prefix — same names on Vercel Environment Variables)
 pnpm install
 pnpm dev

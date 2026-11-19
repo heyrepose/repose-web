@@ -6,14 +6,21 @@ const nextConfig = {
     API_BASE_URL:
       process.env.API_BASE_URL ?? "http://localhost:4000/api/v1",
     SOCKET_URL: process.env.SOCKET_URL ?? "http://localhost:4000",
-    STRIPE_PUBLISHABLE_KEY: process.env.STRIPE_PUBLISHABLE_KEY ?? "",
     SITE_URL: process.env.SITE_URL ?? "http://localhost:4001",
+    // Public OAuth client id (not a secret). Blank = Google sign-in buttons are hidden.
+    GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID ?? "",
   },
   images: {
     remotePatterns: [
       {
         protocol: "https",
         hostname: "res.cloudinary.com",
+        pathname: "/**",
+      },
+      // Google profile pictures (set on first Google sign-in).
+      {
+        protocol: "https",
+        hostname: "lh3.googleusercontent.com",
         pathname: "/**",
       },
     ],

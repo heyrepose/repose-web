@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useEffect, useState } from "react";
 import { ChevronRight, Bell, Shield, User, Wallet } from "lucide-react";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, signOut } from "@/lib/api-client";
 import { useAuth } from "@/lib/hooks";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/components/ui/toast";
@@ -22,10 +22,11 @@ const items = [
   { href: "/profile/edit", label: "Edit profile", icon: User },
   { href: "/notifications", label: "Notifications inbox", icon: Bell },
   { href: "/profile/wallet", label: "Wallet & payouts", icon: Wallet },
+  { href: "/settings/security", label: "Security & account", icon: Shield },
 ];
 
 export default function SettingsPage() {
-  const { user, clearSession } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const qc = useQueryClient();
   const [logoutOpen, setLogoutOpen] = useState(false);
@@ -151,8 +152,8 @@ export default function SettingsPage() {
       <ConfirmDialog
         open={logoutOpen}
         onClose={() => setLogoutOpen(false)}
-        onConfirm={() => {
-          clearSession();
+        onConfirm={async () => {
+          await signOut();
           toast("Signed out", "default");
           window.location.href = "/";
         }}

@@ -15,7 +15,7 @@ import {
   Shield,
   BarChart3,
 } from "lucide-react";
-import { apiFetch } from "@/lib/api-client";
+import { apiFetch, signOut } from "@/lib/api-client";
 import { useAuth } from "@/lib/hooks";
 import { formatAed } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
@@ -52,7 +52,7 @@ const LINKS = [
 ];
 
 export default function ProfilePage() {
-  const { clearSession, user } = useAuth();
+  const { user } = useAuth();
   const { toast } = useToast();
   const [logoutOpen, setLogoutOpen] = useState(false);
 
@@ -177,8 +177,8 @@ export default function ProfilePage() {
       <ConfirmDialog
         open={logoutOpen}
         onClose={() => setLogoutOpen(false)}
-        onConfirm={() => {
-          clearSession();
+        onConfirm={async () => {
+          await signOut();
           toast("Signed out", "default");
           window.location.href = "/";
         }}
