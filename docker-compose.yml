@@ -1,0 +1,49 @@
+# =============================================================
+# repose-web — self-contained dev compose
+# =============================================================
+# Requires a running API on :4000 (use root compose or
+# repose-server/docker-compose.yml first).
+#
+# From repose-web/:
+#   docker compose up
+# =============================================================
+
+name: repose-web
+
+networks:
+  web_net:
+    driver: bridge
+
+volumes:
+  pnpm_store_web:
+
+services:
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: dev
+    container_name: repose_web
+    restart: unless-stopped
+    environment:
+      API_BASE_URL: ${API_BASE_URL:-http://host.docker.internal:4000/api/v1}
+      SOCKET_URL: ${SOCKET_URL:-http://host.docker.internal:4000}
+      SITE_URL: ${SITE_URL:-http://localhost:4001}
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
+    ports:
+      - "4001:4001"
+    volumes:
+      - ./src:/app/src
+      - ./public:/app/public
+      - ./packages:/app/packages
+      - ./next.config.mjs:/app/next.config.mjs
+      - ./tailwind.config.ts:/app/tailwind.config.ts
+      - ./postcss.config.mjs:/app/postcss.config.mjs
+      - ./tsconfig.json:/app/tsconfig.json
+      - pnpm_store_web:/root/.local/share/pnpm/store
+    networks:
+      - web_net
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

@@ -1,6 +1,8 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   transpilePackages: ["@repose/ui", "@repose/api-types"],
+  // Required for Docker prod image (copies only what's needed to run)
+  output: process.env.NEXT_OUTPUT === "standalone" ? "standalone" : undefined,
   // Expose non-prefixed env keys to the client bundle (Vercel-friendly; no NEXT_PUBLIC_ required).
   env: {
     API_BASE_URL:
