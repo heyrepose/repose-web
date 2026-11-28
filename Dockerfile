@@ -1,49 +1,65 @@
-# ============================================================
-# repose-web — Next.js 14 App Router  (pnpm workspace · Node 20)
-# ============================================================
-# The web app is a pnpm workspace: packages/ui and packages/api-types
-# must be present before `next build` runs.
+# =============================================================================
+# repose-web — Next.js 14 App Router  (pnpm workspace · Node 20 LTS)
+# =============================================================================
+# pnpm workspace layout:
+#   packages/ui        – design tokens, condition badges
+#   packages/api-types – shared contract enums/shapes
 #
-# Stages
-#   base      – Node + pnpm
-#   deps      – install all workspace deps
-#   dev       – hot-reload (source bind-mounted at runtime)
-#   builder   – next build (standalone output)
-#   prod      – minimal runtime from .next/standalone
-# ============================================================
+# Build stages
+#   base     – Node 20 Alpine + pnpm
+#   deps     – install workspace deps once
+#   dev      – hot-reload (source bind-mounted at runtime)
+#   builder  – next build with standalone output
+#   prod     – minimal runtime from .next/standalone
+#
+# NOTE: Next.js bakes env vars into the client bundle at build time.
+#   Pass API_BASE_URL / SOCKET_URL / SITE_URL as --build-arg for prod images.
+#   In dev the values come from the compose `environment` block at runtime.
+#
+# Usage
+#   Dev   : docker compose up web          (target=dev, default in compose)
+#   Prod  : docker build --target prod \
+#             --build-arg API_BASE_URL=https://api.example.com/api/v1 \
+#             -t repose-web .
+# =============================================================================
 
-ARG NODE_VERSION=20
+ARG NODE_VERSION=20-alpine
 
-# ── 1. Base ──────────────────────────────────────────────────
-FROM node:${NODE_VERSION}-alpine AS base
+# ── Base: Node + pnpm ─────────────────────────────────────────────────────────
+FROM node:${NODE_VERSION} AS base
+
+RUN apk add --no-cache dumb-init
 RUN corepack enable && corepack prepare pnpm@9.12.0 --activate
+
 WORKDIR /app
 
-# ── 2. Deps ───────────────────────────────────────────────────
+# ── Deps: install workspace deps once ─────────────────────────────────────────
 FROM base AS deps
+
+# Copy workspace manifests — layer is cached until any package.json changes
 COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY packages/ui/package.json ./packages/ui/
-COPY packages/api-types/package.json ./packages/api-types/
+COPY packages/ui/package.json          ./packages/ui/
+COPY packages/api-types/package.json   ./packages/api-types/
+
 RUN pnpm install --frozen-lockfile
 
-# ── 3. Dev ────────────────────────────────────────────────────
-FROM base AS dev
-COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
-COPY packages/ui/package.json ./packages/ui/
-COPY packages/api-types/package.json ./packages/api-types/
-RUN pnpm install --frozen-lockfile
-# Source bind-mounted at runtime; this only sets the entrypoint
+# ── Dev: hot-reload (source mounted by docker-compose) ───────────────────────
+FROM deps AS dev
+
+ENV NODE_ENV=development
 EXPOSE 4001
+
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+RUN chown -R appuser:appgroup /app
+USER appuser
+
+ENTRYPOINT ["dumb-init", "--"]
 CMD ["pnpm", "dev"]
 
-# ── 4. Builder ────────────────────────────────────────────────
-FROM base AS builder
-COPY --from=deps /app/node_modules ./node_modules
-COPY --from=deps /app/packages/ui/node_modules ./packages/ui/node_modules
-COPY --from=deps /app/packages/api-types/node_modules ./packages/api-types/node_modules
-COPY . .
+# ── Builder: compile Next.js app ──────────────────────────────────────────────
+FROM deps AS builder
 
-# Build-time env — values come from docker-compose / CI args
+# Build-time env vars — Next.js inlines these into the client bundle
 ARG API_BASE_URL=http://localhost:4000/api/v1
 ARG SOCKET_URL=http://localhost:4000
 ARG SITE_URL=http://localhost:4001
@@ -55,22 +71,33 @@ ENV SOCKET_URL=${SOCKET_URL}
 ENV SITE_URL=${SITE_URL}
 ENV GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID}
 ENV STRIPE_PUBLISHABLE_KEY=${STRIPE_PUBLISHABLE_KEY}
-
-# Enable Next.js standalone output (see next.config.mjs note below)
 ENV NEXT_TELEMETRY_DISABLED=1
+# Activate standalone output mode (gated in next.config.mjs on this var)
 ENV NEXT_OUTPUT=standalone
+
+# Copy full source on top of installed deps
+COPY . .
+
 RUN pnpm build
 
-# ── 5. Prod ───────────────────────────────────────────────────
-FROM node:${NODE_VERSION}-alpine AS prod
+# ── Prod: minimal standalone runtime ─────────────────────────────────────────
+FROM node:${NODE_VERSION} AS prod
+
+RUN apk add --no-cache dumb-init
+
 WORKDIR /app
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
-# Standalone output bundles everything needed to run
-COPY --from=builder /app/.next/standalone ./
-COPY --from=builder /app/.next/static ./.next/static
-COPY --from=builder /app/public ./public
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
 
+# .next/standalone bundles server + node_modules; copy static assets alongside
+COPY --from=builder --chown=appuser:appgroup /app/.next/standalone ./
+COPY --from=builder --chown=appuser:appgroup /app/.next/static     ./.next/static
+COPY --from=builder --chown=appuser:appgroup /app/public           ./public
+
+USER appuser
 EXPOSE 4001
+
+ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "server.js"]

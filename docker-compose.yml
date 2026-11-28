@@ -1,12 +1,16 @@
-# =============================================================
+# =============================================================================
 # repose-web — self-contained dev compose
-# =============================================================
-# Requires a running API on :4000 (use root compose or
-# repose-server/docker-compose.yml first).
+# =============================================================================
+# Requires a running API somewhere on port 4000.
+# If the API runs locally (not in Docker): API_BASE_URL defaults to
+# host.docker.internal which resolves to your host machine on Docker Desktop.
 #
-# From repose-web/:
+# Run from repose-web/:
 #   docker compose up
-# =============================================================
+#
+# Override API location:
+#   API_BASE_URL=http://api.dev.example.com/api/v1 docker compose up
+# =============================================================================
 
 name: repose-web
 
@@ -15,7 +19,8 @@ networks:
     driver: bridge
 
 volumes:
-  pnpm_store_web:
+  web_nm:
+  web_next:
 
 services:
 
@@ -27,10 +32,11 @@ services:
     container_name: repose_web
     restart: unless-stopped
     environment:
-      API_BASE_URL: ${API_BASE_URL:-http://host.docker.internal:4000/api/v1}
-      SOCKET_URL: ${SOCKET_URL:-http://host.docker.internal:4000}
-      SITE_URL: ${SITE_URL:-http://localhost:4001}
-      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      NODE_ENV:              development
+      API_BASE_URL:          ${API_BASE_URL:-http://host.docker.internal:4000/api/v1}
+      SOCKET_URL:            ${SOCKET_URL:-http://host.docker.internal:4000}
+      SITE_URL:              ${SITE_URL:-http://localhost:4001}
+      GOOGLE_CLIENT_ID:      ${GOOGLE_CLIENT_ID:-}
       STRIPE_PUBLISHABLE_KEY: ${STRIPE_PUBLISHABLE_KEY:-}
     ports:
       - "4001:4001"
@@ -38,12 +44,14 @@ services:
       - ./src:/app/src
       - ./public:/app/public
       - ./packages:/app/packages
-      - ./next.config.mjs:/app/next.config.mjs
-      - ./tailwind.config.ts:/app/tailwind.config.ts
-      - ./postcss.config.mjs:/app/postcss.config.mjs
-      - ./tsconfig.json:/app/tsconfig.json
-      - pnpm_store_web:/root/.local/share/pnpm/store
+      - ./next.config.mjs:/app/next.config.mjs:ro
+      - ./tailwind.config.ts:/app/tailwind.config.ts:ro
+      - ./postcss.config.mjs:/app/postcss.config.mjs:ro
+      - ./tsconfig.json:/app/tsconfig.json:ro
+      - web_nm:/app/node_modules
+      - web_next:/app/.next
     networks:
       - web_net
+    # Lets Docker Desktop containers reach host machine services
     extra_hosts:
       - "host.docker.internal:host-gateway"
