@@ -49,8 +49,9 @@ FROM deps AS dev
 ENV NODE_ENV=development
 EXPOSE 4001
 
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-RUN chown -R appuser:appgroup /app
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup \
+ && mkdir -p /app/.next \
+ && chown -R appuser:appgroup /app
 USER appuser
 
 ENTRYPOINT ["dumb-init", "--"]
